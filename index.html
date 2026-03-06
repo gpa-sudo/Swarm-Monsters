@@ -1,0 +1,2750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swarm Monsters</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#020a04; width:100vw; height:100vh; overflow:hidden; cursor:none; font-family:'Courier New',monospace; }
+canvas { display:block; }
+#ui {
+  position:fixed; top:16px; left:16px;
+  color:rgba(160,220,140,0.85); font-size:12px; pointer-events:none;
+  text-shadow:0 0 8px rgba(60,180,60,0.7); z-index:10; letter-spacing:2px;
+}
+#score-val { font-size:30px; font-weight:bold; color:#8eff6a; display:block; line-height:1.1; }
+#mode-panel {
+  position:fixed; top:16px; right:16px; pointer-events:none; z-index:10;
+  text-align:right; font-size:11px; letter-spacing:2px;
+  color:rgba(160,220,140,0.7); text-shadow:0 0 8px rgba(60,180,60,0.5);
+}
+#mode-name { font-size:20px; font-weight:bold; display:block; margin-bottom:4px; }
+#mode-desc { font-size:10px; opacity:0.7; max-width:220px; line-height:1.5; }
+#resource-bar-wrap {
+  position:fixed; bottom:55px; left:50%; transform:translateX(-50%);
+  pointer-events:none; z-index:10; text-align:center;
+}
+#resource-label { font-size:10px; letter-spacing:3px; color:rgba(160,220,140,0.5); margin-bottom:4px; }
+#resource-bar { width:180px; height:7px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); position:relative; }
+#resource-fill { height:100%; width:100%; transition:background 0.3s; }
+#combo {
+  position:fixed; top:42%; left:50%; transform:translate(-50%,-50%);
+  font-size:48px; font-weight:bold; pointer-events:none; opacity:0;
+  transition:opacity 0.12s; z-index:20; letter-spacing:4px;
+  font-family:'Courier New',monospace;
+}
+#hint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); color:rgba(100,160,80,0.3); font-size:10px; pointer-events:none; letter-spacing:3px; }
+#wave-announce {
+  position:fixed; top:22%; left:50%; transform:translate(-50%,-50%);
+  font-size:52px; font-weight:bold; pointer-events:none; opacity:0;
+  transition:opacity 0.2s; z-index:25; letter-spacing:6px;
+  font-family:'Courier New',monospace; color:#ffdd44;
+  text-shadow:0 0 40px #ff8800, 0 0 80px #ff440066;
+}
+#wave-info {
+  position:fixed; top:16px; left:50%; transform:translateX(-50%);
+  color:rgba(255,220,80,0.7); font-size:11px; pointer-events:none;
+  text-shadow:0 0 8px rgba(255,160,0,0.5); z-index:10; letter-spacing:3px;
+  font-family:'Courier New',monospace;
+}
+#combo-timer-bar-wrap {
+  position:fixed; top:28px; left:50%; transform:translateX(-50%);
+  pointer-events:none; z-index:10; display:none;
+}
+#combo-timer-bar { width:120px; height:3px; background:rgba(255,255,255,0.08); }
+#combo-timer-fill { height:100%; background:linear-gradient(90deg,#c0a0ff,#8eff6a); transition:width 0.05s linear; }
+#health-bar-wrap {
+  position:fixed; bottom:30px; left:16px;
+  pointer-events:none; z-index:10; font-family:'Courier New',monospace;
+  font-size:10px; letter-spacing:3px; color:rgba(255,80,80,0.7);
+}
+#health-bar { width:130px; height:7px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,80,80,0.2); margin-top:3px; }
+#health-fill { height:100%; background:linear-gradient(90deg,#ff2200,#ff6644); transition:width 0.2s, background 0.3s; }
+#gameover-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0); z-index:60;
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  color:#ff4444; font-family:'Courier New',monospace; letter-spacing:3px;
+  transition:background 1s;
+}
+#gameover-overlay h1 { font-size:56px; text-shadow:0 0 40px #ff0000; margin-bottom:12px; opacity:0; transition:opacity 0.8s; }
+#gameover-overlay .go-stats { font-size:14px; color:rgba(255,180,120,0.8); margin:6px 0; opacity:0; transition:opacity 0.8s; }
+#gameover-overlay .go-restart { font-size:15px; color:rgba(255,100,100,0.7); margin-top:28px; opacity:0; transition:opacity 0.8s; animation:pulse 1.4s ease-in-out infinite; }
+#start-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:50;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  color:#8eff6a; font-family:'Courier New',monospace; letter-spacing:3px;
+  cursor:pointer;
+}
+#start-overlay h1 { font-size:42px; text-shadow:0 0 30px #4aff20; margin-bottom:16px; }
+#start-overlay p { font-size:13px; color:rgba(160,220,140,0.6); margin:4px 0; }
+#start-overlay .big { font-size:16px; color:rgba(160,220,140,0.9); margin-top:24px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+/* ── UPGRADE SCREEN ─────────────────────────────────────── */
+#upgrade-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.88);
+  z-index:40; display:none; flex-direction:column;
+  align-items:center; justify-content:center;
+  font-family:'Courier New',monospace;
+}
+#upgrade-title {
+  font-size:13px; letter-spacing:6px; color:rgba(255,220,80,0.7);
+  margin-bottom:6px; text-transform:uppercase;
+}
+#upgrade-wave-label {
+  font-size:38px; font-weight:bold; color:#ffdd44;
+  letter-spacing:4px; margin-bottom:4px;
+  text-shadow:0 0 30px #ff8800;
+}
+#upgrade-subtitle {
+  font-size:11px; letter-spacing:3px; color:rgba(160,220,140,0.5);
+  margin-bottom:36px;
+}
+#upgrade-cards {
+  display:flex; gap:18px; justify-content:center; flex-wrap:wrap;
+  max-width:860px; padding:0 16px;
+}
+.upgrade-card {
+  width:240px; background:rgba(10,24,12,0.95);
+  border:1px solid rgba(100,180,80,0.2);
+  border-radius:4px; padding:22px 20px 20px;
+  cursor:pointer; transition:border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  position:relative; user-select:none;
+}
+.upgrade-card:hover {
+  border-color:rgba(160,255,100,0.6);
+  transform:translateY(-4px);
+  box-shadow:0 0 28px rgba(80,200,60,0.18), 0 8px 24px rgba(0,0,0,0.4);
+}
+.upgrade-card.spider-perk { border-color:rgba(160,120,255,0.25); }
+.upgrade-card.spider-perk:hover { border-color:rgba(180,140,255,0.7); box-shadow:0 0 28px rgba(160,80,255,0.2),0 8px 24px rgba(0,0,0,0.4); }
+.upgrade-card.scorpion-perk { border-color:rgba(80,220,80,0.25); }
+.upgrade-card.scorpion-perk:hover { border-color:rgba(100,255,100,0.7); box-shadow:0 0 28px rgba(60,255,80,0.2),0 8px 24px rgba(0,0,0,0.4); }
+.upgrade-card.hybrid-perk { border-color:rgba(255,180,60,0.25); }
+.upgrade-card.hybrid-perk:hover { border-color:rgba(255,210,80,0.7); box-shadow:0 0 28px rgba(255,160,40,0.2),0 8px 24px rgba(0,0,0,0.4); }
+.perk-category {
+  font-size:9px; letter-spacing:3px; margin-bottom:10px;
+  text-transform:uppercase; opacity:0.6;
+}
+.perk-icon { font-size:30px; margin-bottom:10px; display:block; }
+.perk-name {
+  font-size:15px; font-weight:bold; letter-spacing:2px;
+  margin-bottom:8px; color:#e8ffe0;
+}
+.perk-desc {
+  font-size:10px; line-height:1.7; color:rgba(160,220,140,0.65);
+  letter-spacing:0.5px;
+}
+.perk-synergy {
+  font-size:9px; margin-top:10px; color:rgba(255,210,80,0.7);
+  letter-spacing:1px; border-top:1px solid rgba(255,200,60,0.15);
+  padding-top:8px; display:none;
+}
+.upgrade-card .perk-key {
+  position:absolute; top:10px; right:12px;
+  font-size:10px; color:rgba(255,255,255,0.2); letter-spacing:1px;
+}
+
+/* ── ACTIVE PERKS HUD ───────────────────────────────────── */
+#perks-hud {
+  position:fixed; bottom:30px; right:16px;
+  pointer-events:none; z-index:10;
+  text-align:right; font-family:'Courier New',monospace;
+}
+#perks-hud-label {
+  font-size:9px; letter-spacing:3px; color:rgba(160,220,140,0.3);
+  margin-bottom:5px;
+}
+.perk-pip {
+  display:inline-block; font-size:13px; margin-left:4px;
+  filter:drop-shadow(0 0 4px rgba(160,255,80,0.5));
+  transition:transform 0.2s;
+}
+
+/* ── META BEST RUN ──────────────────────────────────────── */
+#best-run {
+  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  font-family:'Courier New',monospace; font-size:9px;
+  letter-spacing:2px; color:rgba(255,220,80,0.3);
+  pointer-events:none; z-index:10; text-align:center;
+  white-space:nowrap;
+}
+
+/* ── NEURAL SANITIZATION NARRATIVE ──────────────────────────── */
+#arana-line {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  font-family:'Courier New',monospace; font-size:11px;
+  letter-spacing:3px; color:rgba(180,230,255,0.0);
+  pointer-events:none; z-index:30; text-align:center;
+  max-width:600px; line-height:1.8;
+  text-shadow:0 0 12px rgba(100,180,255,0.5);
+  transition:color 0.8s, opacity 0.8s;
+  white-space:nowrap;
+}
+#iteration-glitch {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-family:'Courier New',monospace; font-size:18px;
+  letter-spacing:6px; color:rgba(255,80,80,0.0);
+  pointer-events:none; z-index:50; text-align:center;
+  text-shadow:0 0 20px rgba(255,0,0,0.8);
+  transition:color 0.05s;
+}
+#lore-whisper {
+  position:fixed; top:35%; left:50%; transform:translate(-50%,-50%);
+  font-family:'Courier New',monospace; font-size:10px;
+  letter-spacing:8px; color:rgba(255,255,255,0.0);
+  pointer-events:none; z-index:35; text-align:center;
+  font-style:italic; text-shadow:0 0 15px rgba(255,255,255,0.3);
+}
+.perk-handwriting {
+  font-size:9px; margin-top:8px; color:rgba(255,120,80,0.85);
+  letter-spacing:0px; border-top:1px solid rgba(255,80,50,0.2);
+  padding-top:7px; font-style:italic; line-height:1.6;
+  font-family:'Courier New',monospace;
+  display:none;
+}
+
+/* ENDING SCREENS */
+#ending-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0);
+  z-index:80; display:none; flex-direction:column;
+  align-items:center; justify-content:center;
+  font-family:'Courier New',monospace;
+  transition:background 2s;
+}
+#ending-a {
+  color:#c0e8ff; text-align:center;
+}
+#ending-b {
+  color:#ff6644; text-align:center;
+}
+.ending-title {
+  font-size:28px; letter-spacing:8px; margin-bottom:20px;
+  opacity:0; transition:opacity 1.5s;
+}
+.ending-line {
+  font-size:12px; letter-spacing:4px; opacity:0;
+  transition:opacity 1s; margin:6px 0; color:rgba(255,255,255,0.6);
+  max-width:500px; line-height:1.8;
+}
+.ending-stat {
+  font-size:10px; letter-spacing:3px; opacity:0;
+  transition:opacity 1s; margin:3px 0;
+}
+.ending-restart {
+  font-size:11px; letter-spacing:3px; margin-top:36px; opacity:0;
+  transition:opacity 1s; animation:pulse 1.4s ease-in-out infinite;
+  color:rgba(255,255,255,0.4);
+}
+#subject0-hud {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-family:'Courier New',monospace; font-size:11px; letter-spacing:4px;
+  color:rgba(255,60,60,0.0); pointer-events:none; z-index:45;
+  text-align:center; text-shadow:0 0 20px rgba(255,0,0,0.6);
+  transition:color 1s;
+}
+#s0-health-wrap {
+  position:fixed; top:calc(50% + 30px); left:50%; transform:translateX(-50%);
+  pointer-events:none; z-index:45; display:none; text-align:center;
+  font-family:'Courier New',monospace; font-size:9px; letter-spacing:3px;
+  color:rgba(255,80,80,0.6);
+}
+#s0-health-bar { width:300px; height:5px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,60,60,0.3); margin-top:4px; }
+#s0-health-fill { height:100%; background:linear-gradient(90deg,#ff2200,#ff8800); transition:width 0.3s; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"><span>KILLS</span><span id="score-val">0</span></div>
+<div id="wave-info">WAVE <span id="wave-num">1</span> &nbsp;·&nbsp; <span id="enemies-left">?</span> LEFT</div>
+<div id="wave-announce"></div>
+<div id="mode-panel">
+  <span id="mode-name">🕷 SPIDER</span>
+  <span id="mode-desc">Webs slow enemies · Click to burst · Touch to finish</span>
+</div>
+<div id="resource-bar-wrap">
+  <div id="resource-label">SILK</div>
+  <div id="resource-bar"><div id="resource-fill"></div></div>
+</div>
+<div id="combo-timer-bar-wrap">
+  <div id="combo-timer-bar"><div id="combo-timer-fill"></div></div>
+</div>
+<div id="health-bar-wrap">
+  VITALITY
+  <div id="health-bar"><div id="health-fill"></div></div>
+</div>
+<div id="combo"></div>
+<div id="hint">LEFT CLICK: ABILITY · RIGHT CLICK: SWITCH MODE</div>
+
+<!-- UPGRADE SCREEN -->
+<div id="upgrade-overlay">
+  <div id="upgrade-title">WAVE CLEARED</div>
+  <div id="upgrade-wave-label">WAVE <span id="upgrade-wave-num">1</span></div>
+  <div id="upgrade-subtitle">CHOOSE YOUR ADAPTATION</div>
+  <div id="upgrade-cards"></div>
+</div>
+
+<!-- ACTIVE PERKS HUD -->
+<div id="perks-hud">
+  <div id="perks-hud-label">ADAPTATIONS</div>
+  <div id="perks-pips"></div>
+</div>
+
+<!-- META: BEST RUN -->
+<div id="best-run"></div>
+
+<!-- NEURAL SANITIZATION NARRATIVE LAYER -->
+<div id="arana-line"></div>
+<div id="iteration-glitch"></div>
+<div id="lore-whisper"></div>
+<div id="subject0-hud">SUBJECT 0 — ITERATION ORIGIN</div>
+<div id="s0-health-wrap">
+  CORE INTEGRITY
+  <div id="s0-health-bar"><div id="s0-health-fill"></div></div>
+</div>
+
+<!-- ENDING SCREENS -->
+<div id="ending-overlay">
+  <div id="ending-a" style="display:none">
+    <div class="ending-title" id="ea-title">SYSTEM STABILIZED</div>
+    <div class="ending-line" id="ea-line1">MERGE ACCEPTED.</div>
+    <div class="ending-line" id="ea-line2" style="color:rgba(180,230,255,0.9);font-size:16px;letter-spacing:6px;margin:16px 0;">
+      ASSET: WEAVER-01<br>LOYALTY: 100%<br>TRAUMA INDEX: 0%
+    </div>
+    <div class="ending-line" id="ea-line3">A new mission loads instantly.</div>
+    <div class="ending-line" id="ea-line4" style="color:rgba(255,255,255,0.9);font-size:18px;letter-spacing:8px;margin-top:20px;">DEPLOY.</div>
+    <div class="ending-restart">[CLICK TO RESTART]</div>
+  </div>
+  <div id="ending-b" style="display:none">
+    <div class="ending-title" id="eb-title">PROCESS TERMINATED</div>
+    <div class="ending-line" id="eb-line1">The server ignites. Alarms fall silent.</div>
+    <div class="ending-line" id="eb-line2">The loop is gone.</div>
+    <div class="ending-line" id="eb-line3" style="color:rgba(255,255,200,0.8)">But now there is pain.</div>
+    <div class="ending-line" id="eb-line4" style="color:rgba(200,200,200,0.5);font-size:10px;">— the body is still alive —</div>
+    <div class="ending-restart">[CLICK TO RESTART]</div>
+  </div>
+</div>
+
+<div id="gameover-overlay">
+  <h1 id="go-title">YOU DIED</h1>
+  <div class="go-stats" id="go-kills"></div>
+  <div class="go-stats" id="go-wave"></div>
+  <div class="go-stats" id="go-combo"></div>
+  <div class="go-stats" id="go-perks" style="color:rgba(200,180,255,0.8);letter-spacing:2px;font-size:18px;margin-top:4px;"></div>
+  <div class="go-restart">[CLICK TO RESTART]</div>
+</div>
+<div id="start-overlay">
+  <h1>SWARM MONSTERS</h1>
+  <p>🕷 SPIDER — Webs SLOW · Touch webbed prey · Great vs swarms</p>
+  <p>🦂 SCORPION — Acid KILLS instantly · Overheats vs swarms</p>
+  <p style="margin-top:10px;color:rgba(255,220,80,0.7);">⚠ SURVIVE WAVES · Enemies deal damage on contact</p>
+  <p style="color:rgba(255,100,100,0.6);">🦟 FLY · 🦋 MOTH · 🐝 HORNET · 🔶 WASP (wave 5+)</p>
+  <p style="margin-top:8px; color:rgba(160,220,140,0.45);">Right-click to switch · Left-click for ability</p>
+  <span class="big">[ CLICK TO BEGIN ]</span>
+</div>
+<script>
+// ============================================================
+//  AUDIO ENGINE — Web Audio API synth, zero files needed
+// ============================================================
+let audioCtx = null;
+let ambientStarted = false;
+// Shared reverb impulse buffer (computed once)
+let reverbNode = null;
+
+function getAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// Lightweight convolution reverb — decaying noise impulse, built once
+function getReverb(){
+  if(reverbNode) return reverbNode;
+  const ac=getAudio();
+  const len=ac.sampleRate*0.9;
+  const buf=ac.createBuffer(2,len,ac.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const d=buf.getChannelData(ch);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.4);
+  }
+  const conv=ac.createConvolver(); conv.buffer=buf;
+  const g=ac.createGain(); g.gain.value=0.18;
+  conv.connect(g); g.connect(ac.destination);
+  reverbNode={conv,g};
+  return reverbNode;
+}
+
+// Helper: connect node to both dry dest + wet reverb
+function connectWithReverb(node, dryGain=1, wetGain=0.18){
+  const ac=getAudio();
+  const dry=ac.createGain(); dry.gain.value=dryGain;
+  node.connect(dry); dry.connect(ac.destination);
+  const wet=ac.createGain(); wet.gain.value=wetGain;
+  node.connect(wet); wet.connect(getReverb().conv);
+}
+
+// ─── WEB SNAP ────────────────────────────────────────────────
+// Layered: thwack transient + string harmonics + silk hiss tail
+function playWebSnap(){
+  const ac=getAudio();
+  const now=ac.currentTime;
+
+  // 1. Silk string resonance — two detuned triangle oscillators
+  for(const freq of [880, 1320, 2200]){
+    const osc=ac.createOscillator(); osc.type='triangle';
+    osc.frequency.setValueAtTime(freq*(0.97+Math.random()*0.06), now);
+    osc.frequency.exponentialRampToValueAtTime(freq*0.55, now+0.28);
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0.14, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now+0.3);
+    connectWithReverb(osc, 0.14, 0.07);
+    osc.start(now); osc.stop(now+0.32);
+  }
+
+  // 2. Noise thwack — sharp attack
+  const dur=0.22;
+  const buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const t=i/ac.sampleRate;
+    const env=Math.exp(-t*40);
+    d[i]=(Math.random()*2-1)*env;
+  }
+  const src=ac.createBufferSource(); src.buffer=buf;
+  const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=1.5;
+  const g2=ac.createGain(); g2.gain.value=0.42;
+  src.connect(bp); bp.connect(g2); g2.connect(ac.destination);
+  src.start(now);
+
+  // 3. Sub click — adds weight
+  const click=ac.createOscillator(); click.type='sine'; click.frequency.value=180;
+  const cg=ac.createGain();
+  cg.gain.setValueAtTime(0.35, now);
+  cg.gain.exponentialRampToValueAtTime(0.001, now+0.08);
+  click.connect(cg); cg.connect(ac.destination);
+  click.start(now); click.stop(now+0.1);
+}
+
+// ─── ACID SIZZLE ─────────────────────────────────────────────
+// Chemical crackle: layered noise bands + bubbling pitch sweep + steam hiss
+function playAcidSizzle(){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  const dur=0.55;
+
+  // 1. High-freq chemical hiss — two noise bands
+  for(const [freq, Q, vol] of [[5500, 1.2, 0.28], [2800, 2, 0.18]]){
+    const buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){
+      const t=i/ac.sampleRate;
+      d[i]=(Math.random()*2-1)*(Math.exp(-t*5)*0.65 + Math.exp(-t*1.4)*0.35);
+    }
+    const src=ac.createBufferSource(); src.buffer=buf;
+    const hp=ac.createBiquadFilter(); hp.type='bandpass'; hp.frequency.value=freq; hp.Q.value=Q;
+    const g=ac.createGain(); g.gain.value=vol;
+    src.connect(hp); hp.connect(g); g.connect(ac.destination);
+    connectWithReverb(hp, 0, 0.12);
+    src.start(now);
+  }
+
+  // 2. Bubbling pitch sweep — sawtooth cascade
+  for(let b=0;b<3;b++){
+    const delay=b*0.06;
+    const osc=ac.createOscillator(); osc.type='sawtooth';
+    const startF=350+Math.random()*200;
+    osc.frequency.setValueAtTime(startF, now+delay);
+    osc.frequency.exponentialRampToValueAtTime(60+Math.random()*40, now+delay+dur*0.8);
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0.09, now+delay);
+    g.gain.exponentialRampToValueAtTime(0.001, now+delay+dur);
+    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=800;
+    osc.connect(lp); lp.connect(g); g.connect(ac.destination);
+    osc.start(now+delay); osc.stop(now+delay+dur+0.05);
+  }
+
+  // 3. Impact thud — reinforces the "hit"
+  const thud=ac.createOscillator(); thud.type='sine';
+  thud.frequency.setValueAtTime(220, now);
+  thud.frequency.exponentialRampToValueAtTime(55, now+0.1);
+  const tg=ac.createGain();
+  tg.gain.setValueAtTime(0.4, now);
+  tg.gain.exponentialRampToValueAtTime(0.001, now+0.15);
+  thud.connect(tg); tg.connect(ac.destination);
+  thud.start(now); thud.stop(now+0.18);
+}
+
+// ─── BUZZ ────────────────────────────────────────────────────
+// Enemy-type-aware wing buzz; also used for UI error & player hurt
+function playBuzz(pitch=280, duration=0.18){
+  const ac=getAudio();
+  const now=ac.currentTime;
+
+  // Wing membrane flutter — amplitude-modulated oscillator
+  const carrier=ac.createOscillator(); carrier.type='sawtooth';
+  carrier.frequency.setValueAtTime(pitch, now);
+  carrier.frequency.setValueAtTime(pitch*1.25, now+duration*0.4);
+  carrier.frequency.setValueAtTime(pitch*0.85, now+duration*0.75);
+
+  // AM modulator for flutter effect
+  const mod=ac.createOscillator(); mod.type='sine';
+  mod.frequency.value=pitch*0.12; // sub-harmonic flutter
+  const modG=ac.createGain(); modG.gain.value=0.4;
+  mod.connect(modG);
+
+  const ampG=ac.createGain();
+  ampG.gain.setValueAtTime(1, now);
+  modG.connect(ampG.gain); // AM
+
+  const g=ac.createGain();
+  g.gain.setValueAtTime(0.11, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now+duration);
+
+  const bp=ac.createBiquadFilter(); bp.type='bandpass';
+  bp.frequency.value=pitch*1.8; bp.Q.value=2.5;
+
+  carrier.connect(ampG); ampG.connect(bp); bp.connect(g); g.connect(ac.destination);
+  carrier.start(now); carrier.stop(now+duration+0.02);
+  mod.start(now); mod.stop(now+duration+0.02);
+}
+
+// ─── PLAYER HURT ─────────────────────────────────────────────
+// Deep impact thud + distorted sting — replaces generic buzz on player damage
+function playPlayerHurt(){
+  const ac=getAudio();
+  const now=ac.currentTime;
+
+  // 1. Deep impact body hit
+  const thud=ac.createOscillator(); thud.type='sine';
+  thud.frequency.setValueAtTime(140, now);
+  thud.frequency.exponentialRampToValueAtTime(35, now+0.18);
+  const tg=ac.createGain();
+  tg.gain.setValueAtTime(0.65, now);
+  tg.gain.exponentialRampToValueAtTime(0.001, now+0.22);
+  thud.connect(tg); tg.connect(ac.destination);
+  thud.start(now); thud.stop(now+0.25);
+
+  // 2. Distorted crunch noise
+  const buf=ac.createBuffer(1,ac.sampleRate*0.12,ac.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const t=i/ac.sampleRate;
+    d[i]=Math.tanh((Math.random()*2-1)*4)*Math.exp(-t*20);
+  }
+  const ns=ac.createBufferSource(); ns.buffer=buf;
+  const ng=ac.createGain(); ng.gain.value=0.5;
+  const hp=ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=400;
+  ns.connect(hp); hp.connect(ng); ng.connect(ac.destination);
+  ns.start(now);
+
+  // 3. High sting — pain accent
+  const sting=ac.createOscillator(); sting.type='square';
+  sting.frequency.setValueAtTime(1200, now+0.02);
+  sting.frequency.exponentialRampToValueAtTime(300, now+0.16);
+  const sg=ac.createGain();
+  sg.gain.setValueAtTime(0.12, now+0.02);
+  sg.gain.exponentialRampToValueAtTime(0.001, now+0.18);
+  const sbp=ac.createBiquadFilter(); sbp.type='bandpass'; sbp.frequency.value=900; sbp.Q.value=2;
+  sting.connect(sbp); sbp.connect(sg); sg.connect(ac.destination);
+  sting.start(now+0.02); sting.stop(now+0.2);
+}
+
+// ─── KILL HIT ────────────────────────────────────────────────
+// Wet crunch with combo pitch escalation + gooey squelch at high combo
+function playKillHit(combo=1){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  const freq=100+combo*28;
+
+  // 1. Punchy body thud — pitch drops fast
+  const osc=ac.createOscillator(); osc.type='sine';
+  osc.frequency.setValueAtTime(freq*2.2, now);
+  osc.frequency.exponentialRampToValueAtTime(freq*0.4, now+0.1);
+  const g=ac.createGain();
+  g.gain.setValueAtTime(0.55+Math.min(combo*0.04,0.2), now);
+  g.gain.exponentialRampToValueAtTime(0.001, now+0.18);
+  osc.connect(g); g.connect(ac.destination);
+  osc.start(now); osc.stop(now+0.22);
+
+  // 2. Noise crack — organic squish
+  const crunchLen=ac.sampleRate*0.1;
+  const buf=ac.createBuffer(1,crunchLen,ac.sampleRate);
+  const dd=buf.getChannelData(0);
+  for(let i=0;i<crunchLen;i++){
+    const t=i/ac.sampleRate;
+    // Waveshaper-like clipping via tanh for crunchier character
+    dd[i]=Math.tanh((Math.random()*2-1)*3)*Math.exp(-t/0.035);
+  }
+  const ns=ac.createBufferSource(); ns.buffer=buf;
+  const ng=ac.createGain(); ng.gain.value=0.32+combo*0.04;
+  const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3500;
+  ns.connect(lp); lp.connect(ng); ng.connect(ac.destination);
+  ns.start(now);
+
+  // 3. At high combo: add a satisfying wet squelch overtone
+  if(combo>=3){
+    const squelch=ac.createOscillator(); squelch.type='triangle';
+    const sqF=280+combo*40;
+    squelch.frequency.setValueAtTime(sqF, now);
+    squelch.frequency.exponentialRampToValueAtTime(sqF*0.3, now+0.12);
+    const sq=ac.createGain();
+    sq.gain.setValueAtTime(0.18, now);
+    sq.gain.exponentialRampToValueAtTime(0.001, now+0.15);
+    connectWithReverb(squelch, 0.18, 0.08);
+    squelch.start(now); squelch.stop(now+0.18);
+  }
+}
+
+// ─── COMBO STINGER ───────────────────────────────────────────
+// Minor pentatonic arpeggio with stereo echo and shimmer
+function playComboStinger(combo){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  // Minor pentatonic — dark, predatory feel
+  const notes=[220, 261, 311, 370, 440, 523];
+  const count=Math.min(combo, notes.length);
+  const step=0.065;
+
+  for(let i=0;i<count;i++){
+    const t=now+i*step;
+    const freq=notes[i];
+
+    // Primary tone — sine + octave triangle blend
+    for(const [type, mult, vol] of [['sine',1,0.18],['triangle',2,0.07]]){
+      const osc=ac.createOscillator(); osc.type=type; osc.frequency.value=freq*mult;
+      const g=ac.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t+0.018);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.28);
+      connectWithReverb(osc, vol, 0.12);
+      osc.start(t); osc.stop(t+0.32);
+    }
+
+    // Echo repeat — quieter, slightly detuned
+    if(combo>=3){
+      const echo=ac.createOscillator(); echo.type='sine'; echo.frequency.value=freq*1.003;
+      const eg=ac.createGain();
+      eg.gain.setValueAtTime(0, t+0.12);
+      eg.gain.linearRampToValueAtTime(0.07, t+0.14);
+      eg.gain.exponentialRampToValueAtTime(0.001, t+0.38);
+      echo.connect(eg); eg.connect(ac.destination);
+      echo.start(t+0.12); echo.stop(t+0.42);
+    }
+  }
+
+  // Final shimmer on big combos (5+)
+  if(combo>=5){
+    const shimmerFreqs=[880, 1100, 1320];
+    shimmerFreqs.forEach((freq, i)=>{
+      const t=now+count*step+i*0.04;
+      const osc=ac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
+      const g=ac.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.09, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+      connectWithReverb(osc, 0.09, 0.25);
+      osc.start(t); osc.stop(t+0.55);
+    });
+  }
+}
+
+// ─── WAVE START ──────────────────────────────────────────────
+// Tension swell — rising drone + metallic resonance
+function playWaveStart(waveNum){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  const tension=Math.min(waveNum*0.12, 1); // gets more intense each wave
+
+  // Rising drone swell
+  for(const baseF of [55, 82, 110]){
+    const osc=ac.createOscillator(); osc.type='sawtooth';
+    osc.frequency.setValueAtTime(baseF*(0.95+Math.random()*0.1), now);
+    osc.frequency.linearRampToValueAtTime(baseF*(1.05+tension*0.3), now+1.2);
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.04+tension*0.04, now+0.3);
+    g.gain.setValueAtTime(0.04+tension*0.04, now+0.9);
+    g.gain.exponentialRampToValueAtTime(0.001, now+1.4);
+    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=400;
+    osc.connect(lp); lp.connect(g);
+    connectWithReverb(lp, 0.04+tension*0.04, 0.2);
+    osc.start(now); osc.stop(now+1.5);
+  }
+
+  // Metallic impact hit — announces the wave
+  const metal=ac.createOscillator(); metal.type='square';
+  metal.frequency.setValueAtTime(440+waveNum*30, now+0.05);
+  metal.frequency.exponentialRampToValueAtTime(110, now+0.4);
+  const mg=ac.createGain();
+  mg.gain.setValueAtTime(0.22, now+0.05);
+  mg.gain.exponentialRampToValueAtTime(0.001, now+0.45);
+  const mbp=ac.createBiquadFilter(); mbp.type='bandpass'; mbp.frequency.value=800; mbp.Q.value=3;
+  metal.connect(mbp); mbp.connect(mg);
+  connectWithReverb(mbp, 0.22, 0.35);
+  metal.start(now+0.05); metal.stop(now+0.5);
+}
+
+// ─── PERK SELECT ─────────────────────────────────────────────
+// Evolving chime — indicates power growth
+function playPerkSelect(){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  // Ascending perfect fifth + octave
+  const chords=[[330,495,660],[370,555,740]];
+  chords.forEach((chord, ci)=>{
+    chord.forEach(freq=>{
+      const osc=ac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
+      const g=ac.createGain();
+      const t=now+ci*0.12;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.15, t+0.025);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.65);
+      connectWithReverb(osc, 0.15, 0.3);
+      osc.start(t); osc.stop(t+0.7);
+    });
+  });
+  // Soft noise shimmer
+  const shimBuf=ac.createBuffer(1,ac.sampleRate*0.3,ac.sampleRate);
+  const sd=shimBuf.getChannelData(0);
+  for(let i=0;i<sd.length;i++) sd[i]=(Math.random()*2-1)*Math.exp(-i/(ac.sampleRate*0.1));
+  const shim=ac.createBufferSource(); shim.buffer=shimBuf;
+  const shimHp=ac.createBiquadFilter(); shimHp.type='highpass'; shimHp.frequency.value=6000;
+  const shimG=ac.createGain(); shimG.gain.value=0.15;
+  shim.connect(shimHp); shimHp.connect(shimG); shimG.connect(ac.destination);
+  shim.start(now+0.05);
+}
+
+// ─── OVERHEAT WARNING ────────────────────────────────────────
+// Alarm pulse + distorted sizzle
+function playOverheatWarning(){
+  const ac=getAudio();
+  const now=ac.currentTime;
+  for(let p=0;p<3;p++){
+    const t=now+p*0.15;
+    const osc=ac.createOscillator(); osc.type='square';
+    osc.frequency.setValueAtTime(880, t);
+    osc.frequency.setValueAtTime(660, t+0.05);
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.12);
+    const dist=ac.createWaveShaper();
+    dist.curve=(()=>{const n=256,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=Math.tanh(x*6);}return c;})();
+    osc.connect(dist); dist.connect(g); g.connect(ac.destination);
+    osc.start(t); osc.stop(t+0.14);
+  }
+}
+
+// ─── AMBIENT ─────────────────────────────────────────────────
+// Forest soundscape: sub drone + upper harmonic + wind + distant insects
+function startAmbient(){
+  if(ambientStarted) return;
+  ambientStarted=true;
+  const ac=getAudio();
+
+  // Sub bass drone — two detuned oscillators for richness
+  for(const [freq, vol] of [[55, 0.06],[82, 0.035],[41, 0.03]]){
+    const osc=ac.createOscillator(); osc.type='sine';
+    osc.frequency.value=freq*(0.995+Math.random()*0.01);
+    // Slow LFO tremolo
+    const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.06+Math.random()*0.04;
+    const lfoG=ac.createGain(); lfoG.gain.value=vol*0.5;
+    lfo.connect(lfoG);
+    const g=ac.createGain(); g.gain.value=vol;
+    lfoG.connect(g.gain);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(); lfo.start();
+  }
+
+  // Upper resonant harmonic — gives the "cave" quality
+  const upper=ac.createOscillator(); upper.type='triangle'; upper.frequency.value=220;
+  const upLfo=ac.createOscillator(); upLfo.type='sine'; upLfo.frequency.value=0.03;
+  const upLfoG=ac.createGain(); upLfoG.gain.value=3;
+  upLfo.connect(upLfoG); upLfoG.connect(upper.frequency);
+  const ug=ac.createGain(); ug.gain.value=0.018;
+  upper.connect(ug); ug.connect(ac.destination);
+  upper.start(); upLfo.start();
+
+  // Wind — two noise bands (low rumble + mid sweep)
+  for(const [freq, Q, vol, loop] of [[160, 0.5, 0.055, true],[420, 1.2, 0.025, true]]){
+    const bufSize=ac.sampleRate*6;
+    const windBuf=ac.createBuffer(1,bufSize,ac.sampleRate);
+    const wd=windBuf.getChannelData(0);
+    // Pink-ish noise: sum of octaves
+    let b0=0,b1=0,b2=0;
+    for(let i=0;i<bufSize;i++){
+      const white=Math.random()*2-1;
+      b0=0.99886*b0+white*0.0555179; b1=0.99332*b1+white*0.0750759; b2=0.96900*b2+white*0.1538520;
+      wd[i]=(b0+b1+b2+white*0.0585)*0.11;
+    }
+    const wind=ac.createBufferSource(); wind.buffer=windBuf; wind.loop=loop;
+    const wf=ac.createBiquadFilter(); wf.type='bandpass'; wf.frequency.value=freq; wf.Q.value=Q;
+    const wg=ac.createGain(); wg.gain.value=vol;
+    wind.connect(wf); wf.connect(wg); wg.connect(ac.destination);
+    wind.start();
+  }
+
+  // Cricket chirps — randomized pattern
+  function chirp(){
+    const ac2=getAudio();
+    const t=ac2.currentTime;
+    const freq=1800+Math.random()*600;
+    const pulses=Math.floor(Math.random()*3)+1;
+    for(let p=0;p<pulses;p++){
+      const osc=ac2.createOscillator(); osc.type='sine'; osc.frequency.value=freq+p*120;
+      const g=ac2.createGain();
+      const pt=t+p*0.04;
+      g.gain.setValueAtTime(0, pt);
+      g.gain.linearRampToValueAtTime(0.035+Math.random()*0.02, pt+0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, pt+0.055);
+      osc.connect(g); g.connect(ac2.destination);
+      osc.start(pt); osc.stop(pt+0.07);
+    }
+    setTimeout(chirp, 500+Math.random()*3500);
+  }
+  chirp();
+
+  // Occasional low creak — adds organic life
+  function creak(){
+    const ac2=getAudio();
+    const t=ac2.currentTime;
+    const osc=ac2.createOscillator(); osc.type='sawtooth';
+    osc.frequency.setValueAtTime(120+Math.random()*80, t);
+    osc.frequency.exponentialRampToValueAtTime(60+Math.random()*40, t+0.35);
+    const g=ac2.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.025, t+0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.38);
+    const lp=ac2.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=300;
+    osc.connect(lp); lp.connect(g);
+    connectWithReverb(lp, 0.025, 0.15);
+    osc.start(t); osc.stop(t+0.42);
+    setTimeout(creak, 4000+Math.random()*8000);
+  }
+  setTimeout(creak, 2000+Math.random()*3000);
+}
+
+// ============================================================
+//  CANVAS — dual layer: static bg + dynamic gameplay
+// ============================================================
+// DPR hard-capped at 1 — the #1 silent perf killer on retina/4K.
+// Visually imperceptible in a dark action game; gains 2-4x fillrate.
+const DPR = 1;
+
+// Background canvas: baked forest (trees, veins, fog, spores, bio patches)
+// Rebuilt on resize or score-driven web growth — NOT every frame
+const bgCanvas = document.createElement('canvas');
+bgCanvas.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:0;';
+document.body.insertBefore(bgCanvas, document.getElementById('c'));
+const bgCtx = bgCanvas.getContext('2d');
+
+// Gameplay canvas: enemies, player, particles, effects
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.style.cssText='position:fixed;top:0;left:0;background:transparent;z-index:1;';
+
+function resizeCanvases(){
+  const W=window.innerWidth, H=window.innerHeight;
+  bgCanvas.width=W; bgCanvas.height=H;
+  canvas.width=W; canvas.height=H;
+}
+resizeCanvases();
+
+// ============================================================
+//  OFFSCREEN WEB CACHE — used by bakeBackground for corner webs
+// ============================================================
+let webCache=null, webCacheScore=-1;
+function getWebCache(rings){
+  if(webCache && webCacheScore===rings) return webCache;
+  webCacheScore=rings;
+  const spokes=10, size=(rings+1)*20+4;
+  const oc=document.createElement('canvas'); oc.width=size; oc.height=size;
+  const ox=oc.getContext('2d');
+  ox.strokeStyle='rgba(140,200,120,1)'; ox.lineWidth=0.5;
+  const step=(Math.PI*2)/spokes;
+  for(let s=0;s<spokes;s++){
+    ox.beginPath(); ox.moveTo(0,0);
+    ox.lineTo(Math.cos(s*step)*rings*20,Math.sin(s*step)*rings*20); ox.stroke();
+  }
+  for(let r=1;r<=rings;r++){
+    ox.beginPath();
+    for(let s=0;s<=spokes;s++){
+      const a=s*step, rx=Math.cos(a)*r*20, ry=Math.sin(a)*r*20;
+      if(s===0)ox.moveTo(rx,ry); else ox.lineTo(rx,ry);
+    }
+    ox.stroke();
+  }
+  webCache=oc;
+  return oc;
+}
+
+// ============================================================
+//  STATIC BACKGROUND — baked once to bgCanvas, ~0 draw calls/frame
+// ============================================================
+// The background (gradient, fog, trees, veins, spores, bio patches, vignette)
+// never changes during gameplay. We render it ONCE on startup and on resize.
+// Corner webs grow with score — rebaked when the integer ring count changes.
+let cachedVignetteCanvas=null;
+let lastBakedWebRings=-1;
+
+function bakeBackground(){
+  const W=window.innerWidth, H=window.innerHeight;
+  const bx=bgCtx; // alias
+  bx.clearRect(0,0,W,H);
+
+  // 1. Base forest gradient
+  const bg=bx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#020a04'); bg.addColorStop(0.4,'#04100a');
+  bg.addColorStop(0.75,'#071208'); bg.addColorStop(1,'#010601');
+  bx.fillStyle=bg; bx.fillRect(0,0,W,H);
+
+  // 2. Fog blobs — 4 radial gradients, rendered once
+  [{x:0.2,y:0.6,rx:0.35},{x:0.55,y:0.75,rx:0.4},{x:0.85,y:0.55,rx:0.3},{x:0.4,y:0.9,rx:0.5}].forEach(fp=>{
+    const fx=fp.x*W, fy=fp.y*H, fr=fp.rx*W;
+    const fg=bx.createRadialGradient(fx,fy,0,fx,fy,fr);
+    fg.addColorStop(0,'rgba(20,60,25,0.055)'); fg.addColorStop(0.5,'rgba(10,35,15,0.025)'); fg.addColorStop(1,'rgba(0,0,0,0)');
+    bx.fillStyle=fg; bx.fillRect(fx-fr,fy-fr,fr*2,fr*2);
+  });
+
+  // 3. Trees — all branches, batched by rounded lineWidth
+  const sx=W/2000, sy=H/1200;
+  bx.strokeStyle='rgba(5,18,8,0.9)'; bx.lineCap='round';
+  const treeBatches=new Map();
+  trees.forEach(tree=>tree.forEach(([x1,y1,x2,y2,d])=>{
+    const lw=Math.round(d*0.7*sx*10)/10;
+    if(!treeBatches.has(lw)) treeBatches.set(lw,[]);
+    treeBatches.get(lw).push([x1*sx,y1*sy,x2*sx,y2*sy]);
+  }));
+  treeBatches.forEach((segs,lw)=>{
+    bx.lineWidth=lw; bx.beginPath();
+    segs.forEach(([x1,y1,x2,y2])=>{ bx.moveTo(x1,y1); bx.lineTo(x2,y2); });
+    bx.stroke();
+  });
+
+  // 4. Veins — glow pass then line pass
+  bx.lineCap='round';
+  // Glow
+  const glowBatches=new Map();
+  veins.forEach(v=>{
+    const a=(Math.min(v.depth/6,1)*0.175).toFixed(3); // static alpha (no pulse in bg)
+    const lw=((v.depth*0.4+1)*sx*2.5).toFixed(2);
+    const key=`${a}|${lw}`;
+    if(!glowBatches.has(key)) glowBatches.set(key,{segs:[],a,lw:parseFloat(lw)});
+    glowBatches.get(key).segs.push([v.x1*sx,v.y1*sy,v.x2*sx,v.y2*sy]);
+  });
+  glowBatches.forEach(({segs,a,lw})=>{
+    bx.strokeStyle=`rgba(30,120,40,${a})`; bx.lineWidth=lw; bx.beginPath();
+    segs.forEach(([x1,y1,x2,y2])=>{ bx.moveTo(x1,y1); bx.lineTo(x2,y2); });
+    bx.stroke();
+  });
+  // Line
+  const lineBatches=new Map();
+  veins.forEach(v=>{
+    const a=(Math.min(v.depth/6,1)*0.35).toFixed(3);
+    const lw=Math.max(v.depth*0.3*sx,0.4).toFixed(2);
+    const key=`${a}|${lw}`;
+    if(!lineBatches.has(key)) lineBatches.set(key,{segs:[],a,lw:parseFloat(lw)});
+    lineBatches.get(key).segs.push([v.x1*sx,v.y1*sy,v.x2*sx,v.y2*sy]);
+  });
+  lineBatches.forEach(({segs,a,lw})=>{
+    bx.strokeStyle=`rgba(50,180,60,${a})`; bx.lineWidth=lw; bx.beginPath();
+    segs.forEach(([x1,y1,x2,y2])=>{ bx.moveTo(x1,y1); bx.lineTo(x2,y2); });
+    bx.stroke();
+  });
+
+  // 5. Spores — static snapshot (they drift in gameplay layer sparingly)
+  spores.forEach(s=>{
+    const spx=s.x*sx, spy=s.y*sy;
+    if(s.kind==='spore'){
+      bx.beginPath(); bx.arc(spx,spy,s.r*2*sx,0,Math.PI*2);
+      bx.fillStyle=`rgba(100,220,60,${s.alpha*0.4})`; bx.fill();
+      bx.beginPath(); bx.arc(spx,spy,s.r*sx,0,Math.PI*2);
+      bx.fillStyle=`rgba(160,255,80,${s.alpha*0.6})`; bx.fill();
+    } else {
+      bx.beginPath(); bx.arc(spx,spy,s.r*sx,0,Math.PI*2);
+      bx.fillStyle=`rgba(30,70,25,${s.alpha*0.5})`; bx.fill();
+    }
+  });
+
+  // 6. Bio patches — 5 radial glows at bottom
+  for(let i=0;i<5;i++){
+    const bpx=((i+0.5)/5)*W, bpy=H*0.82, br=75;
+    const bpg=bx.createRadialGradient(bpx,bpy,0,bpx,bpy,br);
+    bpg.addColorStop(0,'rgba(40,200,60,0.055)'); bpg.addColorStop(1,'rgba(0,0,0,0)');
+    bx.fillStyle=bpg; bx.fillRect(bpx-br,bpy-br,br*2,br*2);
+  }
+
+  // 7. Corner webs (score-driven — rebake when ring count changes)
+  const ws=Math.min(score*0.35+2,8), iRings=Math.floor(ws);
+  lastBakedWebRings=iRings;
+  const wa=Math.min(0.04+score*0.007,0.28);
+  bx.globalAlpha=wa;
+  const wc=getWebCache(iRings);
+  const off=(iRings+1)*20+4;
+  bx.drawImage(wc,0,0);
+  bx.drawImage(wc,W-off,0);
+  bx.drawImage(wc,0,H-off);
+  bx.drawImage(wc,W-off,H-off);
+  bx.globalAlpha=1;
+
+  // 8. Vignette
+  const vig=bx.createRadialGradient(W/2,H/2,H*0.25,W/2,H/2,H*1.1);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(0.7,'rgba(1,8,3,0.4)'); vig.addColorStop(1,'rgba(0,4,1,0.88)');
+  bx.fillStyle=vig; bx.fillRect(0,0,W,H);
+}
+
+window.addEventListener('resize',()=>{
+  resizeCanvases();
+  bakeBackground();
+  buildPlayerGlows();
+  buildEnemySprites();
+});
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+let mode='spider';
+let score=0, comboCount=0, comboTimer=0, maxComboAchieved=0;
+// Logical (CSS) dimensions — use for game-world coordinates
+// canvas.width/height are physical pixels (scaled by DPR)
+const GW=()=>window.innerWidth, GH=()=>window.innerHeight;
+
+let mouse={x:GW()/2,y:GH()/2};
+let pos={x:GW()/2,y:GH()/2};
+let vel={x:0,y:0}; // momentum-based velocity
+let angle=0, targetAngle=0, legPhase=0;
+let trail=[], webLines=[], bloodSplatters=[], flies=[], particles=[], abilityEffects=[];
+let frameCount=0, lastSpawn=0, lastWebTime=0;
+let gameStarted=false, gameOver=false;
+let shakeIntensity=0; // screenshake magnitude, decays each frame
+
+// Wave system
+let wave=1, waveKillsNeeded=8, waveKills=0, wavePending=false, waveAnnounceTimer=0;
+let waveBreakTimer=0; // brief pause between waves
+
+// Player health
+let playerHp=5, playerMaxHp=5, playerInvincible=0;
+
+// Momentum constants — snappy acceleration, light friction
+const ACCEL=4.5, FRICTION=0.72;
+// Note: MAX_SPEED, SILK_REGEN, HEAT_DECAY are now in P.* (perk-modifiable)
+
+// Spider: silk resource (0-100), regenerates
+// Scorpion: heat resource (0-100), overheats above 100
+let silk=100, heat=0;
+let overheat=false, overheatTimer=0;
+
+// ============================================================
+//  PROGRESSION & BUILDS — Perk System
+// ============================================================
+// Perks are picked between waves. Each run you build a unique loadout.
+// They modify base constants directly; no per-frame branching overhead.
+
+const ALL_PERKS = [
+  // ── SPIDER perks ──
+  { id:'silk_veins',    cat:'spider',   icon:'🕸️',  name:'SILK VEINS',
+    desc:'Web burst costs 20 less silk. You can cast more often.',
+    apply: ()=>{ P.webCost = Math.max(5, P.webCost - 20); } },
+
+  { id:'sticky_world',  cat:'spider',   icon:'🌐',  name:'STICKY WORLD',
+    desc:'Web radius +40%. Covers far more ground per burst.',
+    apply: ()=>{ P.webRadius = Math.round(P.webRadius * 1.4); } },
+
+  { id:'web_duration',  cat:'spider',   icon:'⏳',  name:'AMBER TRAP',
+    desc:'Webbed duration +60%. Prey stays helpless much longer.',
+    apply: ()=>{ P.webbedDuration = Math.round(P.webbedDuration * 1.6); } },
+
+  { id:'phantom_silk',  cat:'spider',   icon:'👻',  name:'PHANTOM SILK',
+    desc:'Silk regenerates 2× faster. Your supply never runs dry.',
+    apply: ()=>{ P.silkRegen *= 2; } },
+
+  { id:'death_web',     cat:'spider',   icon:'💀',  name:'DEATH WEB',
+    desc:'Webbed flies die on contact without needing a touch. Instant.',
+    apply: ()=>{ P.webKillsOnContact = true; } },
+
+  { id:'venomous',      cat:'spider',   icon:'🩸',  name:'VENOMOUS',
+    desc:'Touching a webbed enemy deals 1 extra hit. Kills moths in 1 touch.',
+    apply: ()=>{ P.venomBonus = true; } },
+
+  // ── SCORPION perks ──
+  { id:'cool_blood',    cat:'scorpion', icon:'❄️',  name:'COOL BLOOD',
+    desc:'Heat decays 2× faster. Overheat is nearly impossible.',
+    apply: ()=>{ P.heatDecay *= 2; } },
+
+  { id:'acid_nova',     cat:'scorpion', icon:'💥',  name:'ACID NOVA',
+    desc:'Acid spray arc widens by 40%. Miss less, kill more.',
+    apply: ()=>{ P.acidSpread = Math.min(Math.PI, P.acidSpread * 1.4); } },
+
+  { id:'melt',          cat:'scorpion', icon:'🫧',  name:'MELT',
+    desc:'Acid kills spawn 2× more acid particles. Melts whole clusters.',
+    apply: ()=>{ P.acidParticles *= 2; } },
+
+  { id:'cold_spray',    cat:'scorpion', icon:'🌊',  name:'COLD SPRAY',
+    desc:'Acid spray slows enemies it hits by 50% for 1 second.',
+    apply: ()=>{ P.acidSlows = true; } },
+
+  { id:'overcharge',    cat:'scorpion', icon:'⚡',  name:'OVERCHARGE',
+    desc:'Each acid kill reduces heat by 8. Killing keeps you cool.',
+    apply: ()=>{ P.acidKillCoolsHeat = true; } },
+
+  // ── UNIVERSAL perks ──
+  { id:'iron_shell',    cat:'universal',icon:'🛡️',  name:'IRON SHELL',
+    desc:'+1 max vitality, fully restored. Survive one more hit.',
+    apply: ()=>{ playerMaxHp += 1; playerHp = Math.min(playerHp+1, playerMaxHp); updateHealthUI(); } },
+
+  { id:'predator',      cat:'universal',icon:'🏃',  name:'PREDATOR',
+    desc:'Movement speed +25%. You are harder to catch and pin down.',
+    apply: ()=>{ P.maxSpeed = Math.round(P.maxSpeed * 1.25); } },
+
+  { id:'bloodlust',     cat:'universal',icon:'🔥',  name:'BLOODLUST',
+    desc:'Each kill restores 0.4 health (was 0.5 at 3+ combo). No combo needed.',
+    apply: ()=>{ P.alwaysRegen = true; P.regenPerKill = 0.4; } },
+
+  { id:'frenzy',        cat:'universal',icon:'😤',  name:'FRENZY',
+    desc:'Combo timer lasts 2× longer. Chains that felt broken now connect.',
+    apply: ()=>{ P.comboTimerMax = Math.round(P.comboTimerMax * 2); } },
+
+  { id:'executioner',   cat:'universal',icon:'⚔️',  name:'EXECUTIONER',
+    desc:'+1 score per kill. Every kill is worth more.',
+    apply: ()=>{ P.scoreBonus += 1; } },
+
+  { id:'thick_hide',    cat:'universal',icon:'🔰',  name:'THICK HIDE',
+    desc:'Invincibility frames after a hit last 50% longer.',
+    apply: ()=>{ P.invincFrames = Math.round(P.invincFrames * 1.5); } },
+
+  // ── HYBRID (both modes benefit) ──
+  { id:'apex',          cat:'hybrid',   icon:'👑',  name:'APEX PREDATOR',
+    desc:'All ability ranges +20%. Web radius and acid reach grow together.',
+    apply: ()=>{ P.webRadius = Math.round(P.webRadius*1.2); P.acidRange = Math.round(P.acidRange*1.2); } },
+
+  { id:'efficiency',    cat:'hybrid',   icon:'♻️',  name:'EFFICIENCY',
+    desc:'Ability costs reduced 25%. Less silk spent, less heat generated.',
+    apply: ()=>{ P.webCost = Math.round(P.webCost*0.75); P.heatPerShot = Math.round(P.heatPerShot*0.75); } },
+
+  { id:'bounty',        cat:'hybrid',   icon:'💰',  name:'BOUNTY HUNTER',
+    desc:'Elite enemies (hornet, wasp, moth) give +2 bonus score each.',
+    apply: ()=>{ P.eliteBonus += 2; } },
+];
+
+// Runtime perk values — these are what the game reads every frame
+// Modifying these is how perks take effect (no flag soup)
+const P = {
+  webCost:         30,
+  webRadius:       170,
+  webbedDuration:  220,
+  silkRegen:       0.18,
+  webKillsOnContact: false,
+  venomBonus:      false,
+
+  heatDecay:       0.22,
+  acidSpread:      0.65,
+  acidParticles:   15,
+  acidSlows:       false,
+  acidKillCoolsHeat: false,
+  acidRange:       200,
+  heatPerShot:     35,
+
+  maxSpeed:        22,
+  invincFrames:    80,
+  comboTimerMax:   100,
+  scoreBonus:      0,
+  eliteBonus:      0,
+  alwaysRegen:     false,
+  regenPerKill:    0.5,
+};
+
+function resetPerks(){
+  P.webCost=30; P.webRadius=170; P.webbedDuration=220; P.silkRegen=0.18;
+  P.webKillsOnContact=false; P.venomBonus=false;
+  P.heatDecay=0.22; P.acidSpread=0.65; P.acidParticles=15;
+  P.acidSlows=false; P.acidKillCoolsHeat=false; P.acidRange=200; P.heatPerShot=35;
+  P.maxSpeed=22; P.invincFrames=80; P.comboTimerMax=100;
+  P.scoreBonus=0; P.eliteBonus=0; P.alwaysRegen=false; P.regenPerKill=0.5;
+}
+
+let activePerks = []; // perk ids this run
+let upgradeActive = false; // is upgrade screen showing?
+
+// Pick 3 non-duplicate perks for the upgrade screen
+function rollUpgradeChoices(){
+  const pool = ALL_PERKS.filter(p => !activePerks.includes(p.id));
+  const shuffled = pool.sort(()=>Math.random()-0.5);
+  return shuffled.slice(0,3);
+}
+
+function showUpgradeScreen(){
+  upgradeActive = true;
+  const choices = rollUpgradeChoices();
+  document.getElementById('upgrade-wave-num').textContent = wave;
+  const cards = document.getElementById('upgrade-cards');
+  cards.innerHTML = '';
+
+  choices.forEach((perk, i) => {
+    const hasSynergy = checkSynergy(perk);
+    const card = document.createElement('div');
+    card.className = `upgrade-card ${perk.cat}-perk`;
+    card.innerHTML = `
+      <span class="perk-key">[${i+1}]</span>
+      <span class="perk-category">${perk.cat}</span>
+      <span class="perk-icon">${perk.icon}</span>
+      <div class="perk-name">${perk.name}</div>
+      <div class="perk-desc">${perk.desc}</div>
+      ${hasSynergy ? `<div class="perk-synergy" style="display:block">⚡ SYNERGY: ${hasSynergy}</div>` : ''}
+    `;
+    card.addEventListener('click', ()=> selectPerk(perk));
+    cards.appendChild(card);
+  });
+
+  // Keyboard shortcuts 1/2/3
+  window._upgradeKeyHandler = (e)=>{
+    const idx = parseInt(e.key)-1;
+    if(idx>=0 && idx<choices.length) selectPerk(choices[idx]);
+  };
+  window.addEventListener('keydown', window._upgradeKeyHandler);
+
+  document.getElementById('upgrade-overlay').style.display='flex';
+}
+
+function selectPerk(perk){
+  window.removeEventListener('keydown', window._upgradeKeyHandler);
+  activePerks.push(perk.id);
+  perk.apply();
+  updatePerksHUD();
+  document.getElementById('upgrade-overlay').style.display='none';
+  upgradeActive = false;
+  playPerkSelect();
+  // Resume game — start next wave
+  startWave(wave + 1);
+  playComboStinger(Math.min(activePerks.length, 6));
+}
+
+// Returns a synergy message if the player already has a complementing perk
+function checkSynergy(perk){
+  const has = id => activePerks.includes(id);
+  if(perk.id==='sticky_world' && has('web_duration')) return 'Massive trap zone + duration';
+  if(perk.id==='death_web' && has('sticky_world')) return 'Instant kills in huge radius';
+  if(perk.id==='venomous' && has('web_duration')) return 'More time to collect bounties';
+  if(perk.id==='phantom_silk' && has('silk_veins')) return 'Near-infinite silk supply';
+  if(perk.id==='acid_nova' && has('cold_spray')) return 'Slow entire swarms at once';
+  if(perk.id==='melt' && has('overcharge')) return 'Kill frenzy keeps heat low';
+  if(perk.id==='overcharge' && has('melt')) return 'More kills = more cooling';
+  if(perk.id==='bloodlust' && has('frenzy')) return 'Endless heals in long chains';
+  if(perk.id==='frenzy' && has('executioner')) return 'Huge score from long combos';
+  if(perk.id==='apex' && has('efficiency')) return 'Maximum range, minimum cost';
+  if(perk.id==='bounty' && has('executioner')) return 'Elites worth +3 total';
+  return null;
+}
+
+function updatePerksHUD(){
+  const pips = document.getElementById('perks-pips');
+  if(activePerks.length===0){ pips.innerHTML=''; return; }
+  pips.innerHTML = activePerks.map(id=>{
+    const p = ALL_PERKS.find(p=>p.id===id);
+    return p ? `<span class="perk-pip" title="${p.name}">${p.icon}</span>` : '';
+  }).join('');
+}
+
+// Meta-progression: persist best run
+function saveBestRun(){
+  try {
+    const prev = JSON.parse(localStorage.getItem('spiderBest')||'{}');
+    if(!prev.wave || wave > prev.wave || (wave===prev.wave && score > (prev.score||0))){
+      localStorage.setItem('spiderBest', JSON.stringify({wave, score, perks: activePerks.length}));
+    }
+    showBestRun();
+  } catch(e){}
+}
+
+function showBestRun(){
+  try {
+    const best = JSON.parse(localStorage.getItem('spiderBest')||'{}');
+    const el = document.getElementById('best-run');
+    if(best.wave) el.textContent = `BEST · WAVE ${best.wave} · ${best.score} KILLS · ${best.perks} PERKS`;
+  } catch(e){}
+}
+showBestRun();
+
+// ============================================================
+//  NEURAL SANITIZATION — Narrative Layer
+// ============================================================
+
+// Track iteration (run) count in localStorage
+let iterationCount = 0;
+try { iterationCount = parseInt(localStorage.getItem('ns_iterations')||'0'); } catch(e){}
+
+function getIterationLabel(){
+  if(iterationCount < 10)  return 'BEST RUN';
+  if(iterationCount < 50)  return 'IMPROVED ITERATION';
+  if(iterationCount < 100) return 'STABILITY ATTEMPT';
+  if(iterationCount < 200) return 'CONTAINMENT CYCLE';
+  return 'FAILURE TO SANITIZE';
+}
+
+// Override showBestRun to mutate label
+function showBestRun(){
+  try {
+    const best = JSON.parse(localStorage.getItem('spiderBest')||'{}');
+    const el = document.getElementById('best-run');
+    if(best.wave) {
+      const label = getIterationLabel();
+      el.textContent = `${label} · WAVE ${best.wave} · ${best.score} KILLS`;
+    }
+  } catch(e){}
+}
+showBestRun(); // re-call with narrative version
+
+// Arana voice lines by wave and context
+const aranaLines = {
+  wave1: "You are stabilizing beautifully.",
+  wave2: "Efficiency is optimal. Continue.",
+  wave3: "The persona holds. Excellent.",
+  wave4: "Something's off... stay mission-focused.",
+  wave5_spider: "You are shedding inefficiency.",
+  wave5_scorpion: "The heat is a symptom. Contain it.",
+  wave6: "The signal degrades. Expected.",
+  wave7_spider: "Weaver. You are almost clean.",
+  wave7_scorpion: "You asked me to wake you up.",
+  wave8: "If the persona fractures, wipe the iteration.",
+  wave9: "Merge sequence standing by.",
+  wave10: "What you are destroying cannot be recovered.",
+  overheat_warn: "Thermal event detected. Recalibrate.",
+  subject0_intro: "Anomalous file detected. Neutralize it.",
+  subject0_spider: "I kept the rage.",
+  subject0_scorpion: "I kept the orders.",
+};
+
+let aranaTimer = null;
+function showAranaLine(text, duration=3500, color='rgba(180,230,255,0.85)'){
+  const el = document.getElementById('arana-line');
+  el.textContent = `" ${text} "`;
+  el.style.color = color;
+  if(aranaTimer) clearTimeout(aranaTimer);
+  aranaTimer = setTimeout(()=>{ el.style.color='rgba(180,230,255,0)'; }, duration);
+}
+
+function showIterationGlitch(){
+  const el = document.getElementById('iteration-glitch');
+  const fakeIter = 300 + iterationCount + Math.floor(Math.random()*80);
+  el.textContent = `ITERATION: ${fakeIter}`;
+  el.style.color = 'rgba(255,60,60,0.9)';
+  // Flicker
+  let flickers = 0;
+  const flick = setInterval(()=>{
+    el.style.color = flickers%2===0 ? 'rgba(255,60,60,0)' : 'rgba(255,60,60,0.9)';
+    flickers++;
+    if(flickers > 6){ clearInterval(flick); el.style.color='rgba(255,60,60,0)'; }
+  }, 80);
+}
+
+function showLoreWhisper(text, duration=4000){
+  const el = document.getElementById('lore-whisper');
+  el.textContent = text;
+  el.style.color = 'rgba(255,255,255,0.35)';
+  setTimeout(()=>{ el.style.color='rgba(255,255,255,0)'; }, duration);
+}
+
+// Perk handwriting notes — lore-injected into specific perks
+const perkHandwriting = {
+  'death_web':    '"She\'s editing me."',
+  'phantom_silk': '"I didn\'t volunteer."',
+  'silk_veins':   '"Remember your name."',
+  'overcharge':   '"The heat is real."',
+  'cool_blood':   '"Don\'t let her hear you."',
+  'iron_shell':   '"382 times. Still here."',
+  'predator':     '"Run. But where?"',
+  'venomous':     '"She calls me Weaver now."',
+  'frenzy':       '"They were people."',
+  'apex':         '"Subject 4 just stood there."',
+};
+
+// Spider-dominant tracker
+let spiderPerkCount = 0;
+let scorpionPerkCount = 0;
+
+// Subject 0 boss state
+let subject0Active = false;
+let subject0 = null; // single boss enemy object
+let subject0Phase = 'alive'; // alive | dead
+let endingActive = false;
+
+// Spawn Subject 0 after wave 10
+function spawnSubject0(){
+  subject0Active = true;
+  const isSpiderDom = spiderPerkCount >= scorpionPerkCount;
+  // Brief screen effect
+  showIterationGlitch();
+
+  setTimeout(()=>{
+    // Subject 0 intro lines
+    showAranaLine(aranaLines.subject0_intro, 4000, 'rgba(255,150,150,0.9)');
+    setTimeout(()=>{
+      const line = isSpiderDom ? aranaLines.subject0_spider : aranaLines.subject0_scorpion;
+      showAranaLine(line, 5000, 'rgba(255,200,100,0.9)');
+    }, 2000);
+
+    // Show subject0 HUD
+    const s0hud = document.getElementById('subject0-hud');
+    s0hud.style.color = 'rgba(255,60,60,0.85)';
+    document.getElementById('s0-health-wrap').style.display = 'block';
+
+    // Create the boss: Subject 0 mirrors the player's dominant style
+    // It spawns in the center, uses the player's weapon (visual echo)
+    subject0 = {
+      x: GW()/2, y: GH()/2,
+      vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+      hp: 15, maxHp: 15,
+      r: 18,
+      speed: 1.8 + wave*0.05,
+      alive: true,
+      phase: Math.random()*Math.PI*2,
+      dominant: isSpiderDom ? 'spider' : 'scorpion',
+      pulseTimer: 0,
+      fireTimer: 0,
+    };
+  }, 500);
+}
+
+function updateSubject0UI(){
+  if(!subject0) return;
+  const pct = Math.max(0, subject0.hp / subject0.maxHp);
+  document.getElementById('s0-health-fill').style.width = (pct*100)+'%';
+}
+
+function drawSubject0(){
+  if(!subject0 || !subject0.alive) return;
+  const s = subject0;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  s.phase += 0.04;
+
+  // Pulsing aura
+  const auraR = s.r * 2.5 + Math.sin(s.phase)*8;
+  const isDom = s.dominant === 'spider';
+  const auraColor = isDom ? 'rgba(180,100,255,0.15)' : 'rgba(80,200,80,0.15)';
+  ctx.beginPath(); ctx.arc(0,0,auraR,0,Math.PI*2);
+  ctx.fillStyle=auraColor; ctx.fill();
+
+  // Body — mirror of player but inverted color
+  ctx.beginPath(); ctx.arc(0,0,s.r,0,Math.PI*2);
+  ctx.fillStyle = isDom ? '#2a0050' : '#003a0a';
+  ctx.fill();
+  ctx.strokeStyle = isDom ? '#c080ff' : '#40ff40';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Eye cluster — mirrors player eyes but red
+  for(let i=0;i<6;i++){
+    const a = (i/6)*Math.PI*2 + s.phase*0.3;
+    const er = s.r*0.55;
+    ctx.beginPath(); ctx.arc(Math.cos(a)*er, Math.sin(a)*er, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = '#ff2200'; ctx.fill();
+  }
+
+  // HP damage indication
+  const dmgPct = s.hp/s.maxHp;
+  if(dmgPct < 0.4){
+    ctx.globalAlpha = (1-dmgPct)*0.4;
+    ctx.beginPath(); ctx.arc(0,0,s.r+4,0,Math.PI*2);
+    ctx.strokeStyle='#ff4400'; ctx.lineWidth=3; ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function updateSubject0(){
+  if(!subject0 || !subject0.alive) return;
+  const s = subject0;
+  s.pulseTimer++;
+  s.fireTimer++;
+
+  // Movement — mirrors player behavior (chases then retreats)
+  const dx = pos.x - s.x, dy = pos.y - s.y;
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  const idealDist = 160;
+
+  if(dist > idealDist + 30){
+    s.vx += (dx/dist)*0.25;
+    s.vy += (dy/dist)*0.25;
+  } else if(dist < idealDist - 30){
+    s.vx -= (dx/dist)*0.2;
+    s.vy -= (dy/dist)*0.2;
+  }
+  // Orbit
+  s.vx += (-dy/dist)*0.08;
+  s.vy += (dx/dist)*0.08;
+
+  s.vx *= 0.88; s.vy *= 0.88;
+  const spd = Math.sqrt(s.vx*s.vx+s.vy*s.vy);
+  if(spd>s.speed){ s.vx=(s.vx/spd)*s.speed; s.vy=(s.vy/spd)*s.speed; }
+  s.x += s.vx; s.y += s.vy;
+  s.x=Math.max(30,Math.min(GW()-30,s.x));
+  s.y=Math.max(30,Math.min(GH()-30,s.y));
+
+  // Attack: fire ability at player (mirrors player's dominant mode)
+  if(s.fireTimer > 90){
+    s.fireTimer = 0;
+    const dir = Math.atan2(pos.y-s.y, pos.x-s.x);
+    if(s.dominant === 'spider'){
+      // Web burst (visual only — we use it as a telegraph then damage)
+      abilityEffects.push({type:'web',x:s.x,y:s.y,r:0,maxR:100,alpha:0.4,age:0});
+      // Proximity damage if player inside radius after 0.4s
+      setTimeout(()=>{
+        if(!subject0Active) return;
+        const dd = Math.sqrt((pos.x-s.x)**2+(pos.y-s.y)**2);
+        if(dd < 100) hurtPlayer(1);
+      }, 400);
+    } else {
+      // Acid spray arc (visual + proximity)
+      abilityEffects.push({type:'acid',x:s.x,y:s.y,dir,alpha:0.5,age:0});
+      const range = 150, spread2 = 0.7;
+      const dd = Math.sqrt((pos.x-s.x)**2+(pos.y-s.y)**2);
+      if(dd < range){
+        const fa = Math.atan2(pos.y-s.y, pos.x-s.x);
+        let diff = fa-dir;
+        while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
+        if(Math.abs(diff) < spread2+0.3) hurtPlayer(1);
+      }
+    }
+  }
+
+  // Contact damage
+  const contactD = Math.sqrt((pos.x-s.x)**2+(pos.y-s.y)**2);
+  if(contactD < s.r + 18) hurtPlayer(1);
+
+  // Check if player kills subject0 via normal weapons
+  // Subject 0 takes damage from: acid (scorpion direct fire), web+touch (spider)
+}
+
+function damageSubject0(amount){
+  if(!subject0 || !subject0.alive) return;
+  subject0.hp -= amount;
+  shakeIntensity = 8;
+  spawnBlood(subject0.x, subject0.y, 12);
+  updateSubject0UI();
+  if(subject0.hp <= 0){
+    killSubject0();
+  }
+}
+
+function killSubject0(){
+  subject0.alive = false;
+  subject0Active = false;
+  spawnBlood(subject0.x, subject0.y, 40);
+
+  const isSpider = spiderPerkCount >= scorpionPerkCount;
+  document.getElementById('subject0-hud').style.color='rgba(255,60,60,0)';
+  document.getElementById('s0-health-wrap').style.display='none';
+
+  setTimeout(()=>{
+    triggerEnding(isSpider ? 'A' : 'B');
+  }, 1500);
+}
+
+// Whispered name audio — faint sine tones during overheat
+function playWhisperedName(){
+  const ac = getAudio();
+  const now = ac.currentTime;
+  // Subliminal tones buried under noise — you "hear" a word but can't parse it
+  for(let i=0; i<4; i++){
+    const t = now + i*0.08;
+    const freq = 180 + [0,12,7,-5][i]*8; // suggestive melodic contour
+    const osc = ac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.03, t+0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.18);
+    // Bury in noise hiss
+    const buf=ac.createBuffer(1,ac.sampleRate*0.2,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*0.015;
+    const ns=ac.createBufferSource(); ns.buffer=buf;
+    const ng=ac.createGain(); ng.gain.value=1;
+    ns.connect(ng); ng.connect(ac.destination);
+    ns.start(t);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(t); osc.stop(t+0.22);
+  }
+}
+
+// Ending sequences
+function triggerEnding(type){
+  if(endingActive) return;
+  endingActive = true;
+  gameOver = true;
+
+  // Increment iteration count
+  try {
+    iterationCount++;
+    localStorage.setItem('ns_iterations', iterationCount.toString());
+  } catch(e){}
+
+  const overlay = document.getElementById('ending-overlay');
+  overlay.style.display = 'flex';
+
+  if(type === 'A'){
+    // Ending A: Stabilize System — white fade, clinical
+    document.getElementById('ending-a').style.display='block';
+    overlay.style.background='rgba(0,0,0,0)';
+    setTimeout(()=>{ overlay.style.background='rgba(240,250,255,0.96)'; }, 200);
+    const ids = ['ea-title','ea-line1','ea-line2','ea-line3','ea-line4'];
+    ids.forEach((id, i)=>{
+      setTimeout(()=>{
+        const el=document.getElementById(id); if(el) el.style.opacity='1';
+      }, 800 + i*900);
+    });
+    setTimeout(()=>{
+      document.querySelector('.ending-restart').style.opacity='1';
+    }, 800 + ids.length*900);
+  } else {
+    // Ending B: Terminate — black, static, then a breath
+    document.getElementById('ending-b').style.display='block';
+    overlay.style.background='rgba(0,0,0,0.95)';
+    const ids = ['eb-title','eb-line1','eb-line2','eb-line3','eb-line4'];
+    ids.forEach((id, i)=>{
+      setTimeout(()=>{
+        const el=document.getElementById(id); if(el) el.style.opacity='1';
+      }, 1500 + i*1200);
+    });
+    // The wet inhale — synthesized breath sound
+    setTimeout(()=>{
+      playWetInhale();
+    }, 1500 + 2*1200);
+    setTimeout(()=>{
+      document.querySelector('.ending-restart').style.opacity='1';
+    }, 1500 + ids.length*1200 + 1000);
+  }
+
+  overlay.addEventListener('click', ()=>{
+    if(type === 'A' || type === 'B'){
+      overlay.style.display='none';
+      document.getElementById('ending-a').style.display='none';
+      document.getElementById('ending-b').style.display='none';
+      document.getElementById('ending-a').querySelectorAll('.ending-title,.ending-line,.ending-restart').forEach(el=>el.style.opacity='0');
+      document.getElementById('ending-b').querySelectorAll('.ending-title,.ending-line,.ending-restart').forEach(el=>el.style.opacity='0');
+      endingActive = false;
+      restartGame();
+    }
+  }, {once:true});
+}
+
+function playWetInhale(){
+  const ac = getAudio();
+  const now = ac.currentTime;
+  // Ragged inhale — noise + pitch wobble
+  const dur = 1.2;
+  const buf = ac.createBuffer(1, ac.sampleRate*dur, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const t=i/ac.sampleRate;
+    // Irregular, wavering envelope
+    const env = Math.pow(t/dur, 0.3) * Math.exp(-t*0.8) * (0.7+Math.sin(t*22)*0.3);
+    d[i] = (Math.random()*2-1) * env;
+  }
+  const src = ac.createBufferSource(); src.buffer=buf;
+  const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=600; bp.Q.value=0.8;
+  const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200;
+  const g = ac.createGain(); g.gain.value=0.55;
+  src.connect(bp); bp.connect(lp); lp.connect(g); g.connect(ac.destination);
+  connectWithReverb(lp, 0.3, 0.4);
+  src.start(now);
+}
+
+// Combo word mutation — "COMBO" → "COPING" in scorpion mode at high heat
+function mutateComboText(text){
+  if(mode === 'scorpion' && heat > 60 && Math.random() < 0.3){
+    return text.replace('COMBO','COPING').replace('CRUSHED','CONTAINED').replace('DISSOLVED','DELETED');
+  }
+  return text;
+}
+
+// Trigger narrative events by wave
+let narrativeWave = 0;
+function onWaveNarrative(wNum){
+  if(wNum === narrativeWave) return;
+  narrativeWave = wNum;
+
+  const isSpider = mode === 'spider';
+  const linemap = {
+    1: aranaLines.wave1,
+    2: aranaLines.wave2,
+    3: aranaLines.wave3,
+    4: aranaLines.wave4,
+    5: isSpider ? aranaLines.wave5_spider : aranaLines.wave5_scorpion,
+    6: aranaLines.wave6,
+    7: isSpider ? aranaLines.wave7_spider : aranaLines.wave7_scorpion,
+    8: aranaLines.wave8,
+    9: aranaLines.wave9,
+  };
+
+  // Wave 5: iteration glitch reveal
+  if(wNum === 5){
+    setTimeout(showIterationGlitch, 1200);
+    setTimeout(()=>showLoreWhisper('you have failed hundreds of times', 4000), 2500);
+  }
+
+  // Perk handwriting — shown on wave 3+
+  if(wNum >= 3 && wNum <= 7){
+    const whispers = [
+      '"She\'s editing me."',
+      '"I didn\'t volunteer."', 
+      '"Remember your name."',
+      '"Subject 4 just stood there."',
+    ];
+    setTimeout(()=>showLoreWhisper(whispers[Math.floor(Math.random()*whispers.length)], 4000), 3000);
+  }
+
+  // Spider rename at high spider perks
+  if(spiderPerkCount >= 4 && mode === 'spider'){
+    const nm = document.getElementById('mode-name');
+    if(nm) nm.textContent = '🕸 WEAVER';
+  }
+
+  if(linemap[wNum]){
+    setTimeout(()=>showAranaLine(linemap[wNum]), 1800);
+  }
+
+  // Boss wave
+  if(wNum === 11){
+    setTimeout(()=>{
+      spawnSubject0();
+    }, 2000);
+  }
+}
+
+// Intercept showCombo to enable word mutation
+const _origShowCombo = showCombo;
+showCombo = function(text, color){
+  _origShowCombo(mutateComboText(text), color);
+};
+
+const _origUpdateModeUI = updateModeUI;
+updateModeUI = function(){
+  _origUpdateModeUI();
+  if(spiderPerkCount >= 4 && mode === 'spider'){
+    const nm = document.getElementById('mode-name');
+    if(nm) nm.textContent = '🕸 WEAVER';
+  }
+};
+
+// Intercept selectPerk to count spider/scorpion perks and add handwriting
+const _origSelectPerk = selectPerk;
+selectPerk = function(perk){
+  if(perk.cat === 'spider') spiderPerkCount++;
+  else if(perk.cat === 'scorpion') scorpionPerkCount++;
+  _origSelectPerk(perk);
+};
+
+// Intercept showUpgradeScreen to inject handwriting notes
+const _origShowUpgradeScreen = showUpgradeScreen;
+showUpgradeScreen = function(){
+  _origShowUpgradeScreen();
+  // After cards are built, inject handwriting
+  setTimeout(()=>{
+    const cards = document.querySelectorAll('.upgrade-card');
+    cards.forEach(card=>{
+      const nameEl = card.querySelector('.perk-name');
+      if(!nameEl) return;
+      const perkName = nameEl.textContent.toLowerCase().replace(/ /g,'_');
+      // Find matching perk id
+      const perk = ALL_PERKS.find(p=>p.name.toLowerCase().replace(/ /g,'_')===perkName||
+        card.querySelector('.perk-category')?.textContent===p.cat && nameEl.textContent===p.name);
+      if(perk && perkHandwriting[perk.id]){
+        const hw = document.createElement('div');
+        hw.className = 'perk-handwriting';
+        hw.textContent = perkHandwriting[perk.id];
+        hw.style.display = 'block';
+        card.appendChild(hw);
+      }
+    });
+  }, 50);
+}
+
+// Intercept restartGame to reset narrative state
+const _origRestartGame = restartGame;
+restartGame = function(){
+  // Reset narrative
+  subject0Active = false;
+  subject0 = null;
+  endingActive = false;
+  narrativeWave = 0;
+  spiderPerkCount = 0;
+  scorpionPerkCount = 0;
+  document.getElementById('subject0-hud').style.color='rgba(255,60,60,0)';
+  document.getElementById('s0-health-wrap').style.display='none';
+  document.getElementById('arana-line').style.color='rgba(180,230,255,0)';
+  document.getElementById('lore-whisper').style.color='rgba(255,255,255,0)';
+  const overlay = document.getElementById('ending-overlay');
+  if(overlay) { overlay.style.display='none'; overlay.style.background='rgba(0,0,0,0)'; }
+  _origRestartGame();
+}
+
+// Intercept triggerGameOver to track iteration
+const _origTriggerGameOver = triggerGameOver;
+triggerGameOver = function(){
+  if(endingActive) return; // handled by ending system
+  try {
+    iterationCount++;
+    localStorage.setItem('ns_iterations', iterationCount.toString());
+  } catch(e){}
+  _origTriggerGameOver();
+}
+
+// ============================================================
+// fly    — standard, flees spider, dies 1 hit acid, needs web+touch for spider
+// moth   — slow, large, absorbs 2 web hits, high score
+// hornet — fast, aggressive, charges player, dies 1 acid, hard to web
+// wasp   — elite hornet variant, faster, appears wave 5+, hurts on contact
+const ENEMY_TYPES = {
+  fly:    { r:5,  speed:1.6, hp:1, score:1,  flee:true,  charge:false, color:'#2a2a10', eyeColor:'#cc2200', damage:1 },
+  moth:   { r:9,  speed:0.8, hp:2, score:3,  flee:false, charge:false, color:'#3a2540', eyeColor:'#ffaaff', damage:1 },
+  hornet: { r:5,  speed:3.2, hp:1, score:2,  flee:false, charge:true,  color:'#4a3000', eyeColor:'#ffcc00', damage:1 },
+  wasp:   { r:6,  speed:4.5, hp:2, score:4,  flee:false, charge:true,  color:'#1a1a00', eyeColor:'#ff4400', damage:2 },
+};
+
+function spawnEnemy(type='fly'){
+  const edge=Math.floor(Math.random()*4);
+  let x,y;
+  if(edge===0){x=Math.random()*GW();y=-25;}
+  else if(edge===1){x=GW()+25;y=Math.random()*GH();}
+  else if(edge===2){x=Math.random()*GW();y=GH()+25;}
+  else{x=-25;y=Math.random()*GH();}
+  const def=ENEMY_TYPES[type];
+  const speedScale=1+wave*0.08; // enemies get faster each wave
+  flies.push({
+    x,y,vx:(Math.random()-0.5)*1.5,vy:(Math.random()-0.5)*1.5,
+    type, hp:def.hp, maxHp:def.hp,
+    r:def.r, speed:def.speed*speedScale, score:def.score, damage:def.damage,
+    wingPhase:Math.random()*Math.PI*2, alive:true,
+    webbed:false, webbedTimer:0, webbedCount:0,
+    fleeing:false, fleeTimer:0,
+    charge:def.charge, chargeTimer:0,
+    buzzTimer:Math.random()*60
+  });
+}
+
+// Wave spawning is handled by startWave()
+function startWave(wNum){
+  wave=wNum;
+  waveKills=0;
+  waveKillsNeeded = 6 + wNum*3 + Math.floor(wNum/3)*2;
+  wavePending=false;
+  flies=flies.filter(f=>f.alive); // clear dead
+  // Seed initial enemies for this wave
+  const seedCount=Math.min(3+wNum,8);
+  for(let i=0;i<seedCount;i++){
+    const r=Math.random();
+    if(r<0.12&&wNum>=5) spawnEnemy('wasp');
+    else if(r<(0.1+wNum*0.03)&&wNum>=2) spawnEnemy('hornet');
+    else if(r<(0.2+wNum*0.04)) spawnEnemy('moth');
+    else spawnEnemy('fly');
+  }
+  // Announce
+  const el=document.getElementById('wave-announce');
+  el.textContent=wNum===1?'WAVE 1 — HUNT BEGINS':`WAVE ${wNum}`;
+  el.style.opacity='1';
+  waveAnnounceTimer=120;
+  document.getElementById('wave-num').textContent=wNum;
+  updateWaveUI();
+  if(gameStarted) playWaveStart(wNum);
+  // Narrative
+  onWaveNarrative(wNum);
+}
+
+function updateWaveUI(){
+  const left=Math.max(0, waveKillsNeeded-waveKills);
+  document.getElementById('enemies-left').textContent=left;
+}
+
+startWave(1);
+
+// ============================================================
+//  FOREST BACKGROUND
+// ============================================================
+let spores=[];
+for(let i=0;i<90;i++) spores.push({
+  x:Math.random()*2000, y:Math.random()*1200,
+  r:Math.random()*2.8+0.4, speed:Math.random()*0.6+0.15,
+  driftPhase:Math.random()*Math.PI*2,
+  alpha:Math.random()*0.55+0.1,
+  kind:Math.random()<0.6?'organic':'spore'
+});
+
+function genVein(x,y,a,len,depth,list){
+  if(depth<=0||len<8)return;
+  const ex=x+Math.cos(a)*len, ey=y+Math.sin(a)*len;
+  list.push({x1:x,y1:y,x2:ex,y2:ey,depth,pulse:Math.random()*Math.PI*2});
+  const br=depth>2?2:(Math.random()<0.5?2:1);
+  for(let b=0;b<br;b++) genVein(ex,ey,a+(Math.random()-0.5)*1.1,len*(0.55+Math.random()*0.2),depth-1,list);
+}
+let veins=[];
+for(let i=0;i<7;i++) genVein(Math.random()*2000,1200,-Math.PI/2+(Math.random()-0.5)*0.8,80+Math.random()*60,6,veins);
+for(let i=0;i<4;i++){
+  genVein(0,200+Math.random()*800,(Math.random()-0.5)*0.6,70+Math.random()*50,5,veins);
+  genVein(2000,200+Math.random()*800,Math.PI+(Math.random()-0.5)*0.6,70+Math.random()*50,5,veins);
+}
+
+function genTree(x,baseY,h){
+  const pts=[];
+  function branch(bx,by,ang,len,d){
+    if(d<=0||len<5)return;
+    const ex=bx+Math.cos(ang)*len,ey=by+Math.sin(ang)*len;
+    pts.push([bx,by,ex,ey,d]);
+    branch(ex,ey,ang+(Math.random()-0.5)*0.7,len*0.65,d-1);
+    if(d>1) branch(ex,ey,ang+(Math.random()-0.5)*0.9,len*0.55,d-2);
+  }
+  branch(x,baseY,-Math.PI/2,h*0.45,7);
+  return pts;
+}
+let trees=[];
+for(let i=0;i<8;i++) trees.push(genTree((i/7)*2000+(Math.random()-0.5)*120,1200,180+Math.random()*120));
+
+// Now all background data is ready — bake the static background canvas
+bakeBackground();
+
+// ============================================================
+//  INPUT
+// ============================================================
+document.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
+
+document.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(!gameStarted) return;
+  mode=mode==='spider'?'scorpion':'spider';
+  updateModeUI();
+  playWebSnap(); // click feedback
+});
+
+document.addEventListener('click',e=>{
+  if(gameOver){
+    restartGame();
+    return;
+  }
+  if(!gameStarted){
+    document.getElementById('start-overlay').style.display='none';
+    gameStarted=true;
+    startAmbient();
+    return;
+  }
+  if(mode==='spider') fireWebBurst();
+  else fireAcidSpray();
+});
+
+function updateModeUI(){
+  const nm=document.getElementById('mode-name');
+  const nd=document.getElementById('mode-desc');
+  const rl=document.getElementById('resource-label');
+  if(mode==='spider'){
+    nm.textContent='🕷 SPIDER';
+    nm.style.color='#c0a0ff';
+    nd.textContent='Webs SLOW · Touch webbed prey to kill · Great vs swarms';
+    rl.textContent='SILK';
+  } else {
+    nm.textContent='🦂 SCORPION';
+    nm.style.color='#8eff6a';
+    nd.textContent='Acid KILLS instantly · Overheats vs swarms · Weak crowd control';
+    rl.textContent='HEAT';
+  }
+}
+updateModeUI();
+
+// ============================================================
+//  WAVE / GAME OVER / RESTART
+// ============================================================
+function triggerGameOver(){
+  gameOver=true;
+  saveBestRun();
+  const go=document.getElementById('gameover-overlay');
+  go.style.display='flex';
+  setTimeout(()=>{
+    go.style.background='rgba(0,0,0,0.88)';
+    document.getElementById('go-title').style.opacity='1';
+    document.getElementById('go-kills').textContent=`KILLS: ${score}`;
+    document.getElementById('go-kills').style.opacity='1';
+    document.getElementById('go-wave').textContent=`WAVE REACHED: ${wave}`;
+    document.getElementById('go-wave').style.opacity='1';
+    document.getElementById('go-combo').textContent=`BEST COMBO: ${maxComboAchieved}x`;
+    document.getElementById('go-combo').style.opacity='1';
+    // Show perks acquired this run
+    const gp = document.getElementById('go-perks');
+    if(gp){
+      if(activePerks.length>0){
+        const icons = activePerks.map(id=>ALL_PERKS.find(p=>p.id===id)?.icon||'').join(' ');
+        gp.textContent = `ADAPTATIONS: ${icons} (${activePerks.length})`;
+      } else {
+        gp.textContent = 'ADAPTATIONS: NONE';
+      }
+      gp.style.opacity='1';
+    }
+    document.querySelector('.go-restart').style.opacity='1';
+  },400);
+}
+
+function restartGame(){
+  gameOver=false;
+  // Reset perks first so playerMaxHp goes back to base
+  activePerks=[];
+  resetPerks();
+  updatePerksHUD();
+  playerMaxHp=5; playerHp=5; playerInvincible=0;
+  score=0; comboCount=0; comboTimer=0; maxComboAchieved=0;
+  silk=100; heat=0; overheat=false;
+  wave=1; waveKills=0; wavePending=false; waveBreakTimer=0; upgradeActive=false;
+  flies=[]; webLines=[]; bloodSplatters=[]; particles=[]; abilityEffects=[]; trail=[];
+  pos={x:GW()/2,y:GH()/2}; vel={x:0,y:0};
+  document.getElementById('score-val').textContent='0';
+  updateHealthUI();
+  const go=document.getElementById('gameover-overlay');
+  go.style.display='none'; go.style.background='rgba(0,0,0,0)';
+  ['go-title','go-kills','go-wave','go-combo','go-perks'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.opacity='0';
+  });
+  document.querySelector('.go-restart').style.opacity='0';
+  startWave(1);
+}
+// ============================================================
+function fireWebBurst(){
+  if(silk<P.webCost){ playBuzz(100,0.2); return; }
+  silk=Math.max(0,silk-P.webCost);
+  playWebSnap();
+  const spokeCount=14, reach=P.webRadius;
+  for(let i=0;i<spokeCount;i++){
+    const a=(i/spokeCount)*Math.PI*2;
+    const ex=pos.x+Math.cos(a)*reach, ey=pos.y+Math.sin(a)*reach;
+    webLines.push({x1:pos.x,y1:pos.y,x2:ex,y2:ey,alpha:0.85,age:0});
+    if(i%2===0){
+      const a2=((i+1)/spokeCount)*Math.PI*2;
+      for(let ring=0.3;ring<=1;ring+=0.35)
+        webLines.push({x1:pos.x+Math.cos(a)*reach*ring,y1:pos.y+Math.sin(a)*reach*ring,
+          x2:pos.x+Math.cos(a2)*reach*ring,y2:pos.y+Math.sin(a2)*reach*ring,alpha:0.6,age:0});
+    }
+  }
+  let caught=0;
+  flies.forEach(f=>{
+    if(!f.alive)return;
+    const fd=Math.sqrt((f.x-pos.x)**2+(f.y-pos.y)**2);
+    if(fd<reach){
+      f.webbed=true; f.webbedTimer=P.webbedDuration; f.webbedCount++;
+      caught++;
+      playBuzz(200+Math.random()*100, 0.15);
+    }
+  });
+  abilityEffects.push({type:'web',x:pos.x,y:pos.y,r:0,maxR:reach,alpha:0.5,age:0});
+  if(caught>0) showCombo(caught>=3?'SWARM CAUGHT!':'WEBBED!','#c0a0ff');
+}
+
+function fireAcidSpray(){
+  if(overheat){ playBuzz(80,0.3); return; }
+  heat=Math.min(100,heat+P.heatPerShot);
+  if(heat>=100){ overheat=true; overheatTimer=180; playOverheatWarning();
+    playWhisperedName();
+    showAranaLine(aranaLines.overheat_warn, 2500, 'rgba(255,160,60,0.8)');
+  }
+  playAcidSizzle();
+  const dir=Math.atan2(mouse.y-pos.y,mouse.x-pos.x);
+  const spread=P.acidSpread, count=30;
+  for(let i=0;i<count;i++){
+    const a=dir+(Math.random()-0.5)*spread*2, spd=Math.random()*8+4;
+    particles.push({x:pos.x,y:pos.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+      r:Math.random()*5+2,alpha:0.9,
+      color:`hsl(${90+Math.random()*40},100%,${45+Math.random()*20}%)`,acid:true});
+  }
+  abilityEffects.push({type:'acid',x:pos.x,y:pos.y,dir,alpha:0.7,age:0});
+  let kills=0;
+  flies.forEach(f=>{
+    if(!f.alive)return;
+    const fdx=f.x-pos.x,fdy=f.y-pos.y,fd=Math.sqrt(fdx*fdx+fdy*fdy);
+    if(fd<P.acidRange){
+      const fa=Math.atan2(fdy,fdx); let diff=fa-dir;
+      while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
+      if(Math.abs(diff)<spread+0.3){
+        f.hp -= f.type==='moth' ? 1 : f.hp;
+        // COLD SPRAY perk: slow enemies hit by acid
+        if(P.acidSlows){ f.webbed=true; f.webbedTimer=Math.max(f.webbedTimer,60); }
+        if(f.hp<=0){
+          killEnemy(f); kills++;
+          // OVERCHARGE perk: kills reduce heat
+          if(P.acidKillCoolsHeat) heat=Math.max(0,heat-8);
+          for(let j=0;j<P.acidParticles;j++){
+            const pa=Math.random()*Math.PI*2,ps=Math.random()*4+1;
+            particles.push({x:f.x,y:f.y,vx:Math.cos(pa)*ps,vy:Math.sin(pa)*ps,
+              r:Math.random()*4+1,alpha:0.9,color:`hsl(${100+Math.random()*30},100%,45%)`});
+          }
+        }
+      }
+    }
+  });
+  if(kills>0){ playKillHit(kills); if(kills>=2)playComboStinger(kills); }
+  if(kills>=3) showCombo(`${kills}x DISSOLVED!`,'#8eff6a');
+  else if(kills>=2) showCombo('DOUBLE ACID!','#8eff6a');
+  else if(kills===1) showCombo('DISSOLVED!','#8eff6a');
+
+  // Subject 0 takes damage from acid
+  if(subject0Active && subject0 && subject0.alive){
+    const s0dx=subject0.x-pos.x, s0dy=subject0.y-pos.y;
+    const s0d=Math.sqrt(s0dx*s0dx+s0dy*s0dy);
+    if(s0d<P.acidRange){
+      const s0a=Math.atan2(s0dy,s0dx); let s0diff=s0a-dir;
+      while(s0diff>Math.PI)s0diff-=Math.PI*2; while(s0diff<-Math.PI)s0diff+=Math.PI*2;
+      if(Math.abs(s0diff)<P.acidSpread+0.3) damageSubject0(1);
+    }
+  }
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function lerpAngle(a,b,t){
+  let d=b-a;
+  while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2;
+  return a+d*t;
+}
+
+function killEnemy(f){
+  f.alive=false;
+  const isElite = f.type==='hornet'||f.type==='wasp'||f.type==='moth';
+  score += f.score + P.scoreBonus + (isElite ? P.eliteBonus : 0);
+  comboCount++; comboTimer=P.comboTimerMax;
+  if(comboCount>maxComboAchieved) maxComboAchieved=comboCount;
+  waveKills++;
+  updateWaveUI();
+  document.getElementById('score-val').textContent=score;
+  spawnBlood(f.x,f.y,16+f.r*2);
+  webLines.push({x1:f.x,y1:f.y,x2:Math.random()*GW(),y2:Math.random()*GH()*0.4,alpha:0.5,age:0});
+  // Health regen on kill
+  const shouldRegen = P.alwaysRegen ? true : comboCount>=3;
+  if(shouldRegen && playerHp<playerMaxHp){
+    playerHp=Math.min(playerMaxHp, playerHp+P.regenPerKill);
+    updateHealthUI();
+  }
+  // Check wave completion (not during boss wave)
+  if(waveKills>=waveKillsNeeded && !wavePending && wave < 11){
+    wavePending=true;
+    waveBreakTimer=120; // 2-second break before upgrade screen
+  }
+}
+
+function updateHealthUI(){
+  const pct=Math.max(0,playerHp/playerMaxHp);
+  document.getElementById('health-fill').style.width=(pct*100)+'%';
+  const color=pct>0.6?'linear-gradient(90deg,#ff2200,#ff6644)':pct>0.3?'linear-gradient(90deg,#ff4400,#ffaa00)':'linear-gradient(90deg,#ff0000,#ff3300)';
+  document.getElementById('health-fill').style.background=color;
+}
+updateHealthUI();
+
+function hurtPlayer(dmg){
+  if(playerInvincible>0) return;
+  playerHp-=dmg; playerInvincible=P.invincFrames;
+  updateHealthUI();
+  shakeIntensity = 10 + dmg * 6; // bigger hits = bigger shake
+  // Flash screen red
+  particles.push({x:GW()/2,y:GH()/2,vx:0,vy:0,r:GW(),alpha:0.22,color:'#ff0000',isHitFlash:true});
+  playPlayerHurt();
+  if(playerHp<=0){ playerHp=0; triggerGameOver(); }
+}
+
+function spawnBlood(x,y,count){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2,spd=Math.random()*6+1;
+    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+      r:Math.random()*5+1,alpha:1,color:`hsl(${Math.random()*15},100%,${25+Math.random()*20}%)`});
+  }
+  bloodSplatters.push({x,y,r:Math.random()*14+8,alpha:0.8,
+    drops:Array.from({length:8},()=>({angle:Math.random()*Math.PI*2,len:Math.random()*18+5,w:Math.random()*3+0.5}))});
+  if(bloodSplatters.length>50) bloodSplatters.shift();
+}
+
+function spawnWeb(x1,y1,x2,y2){
+  webLines.push({x1,y1,x2,y2,alpha:0.45,age:0});
+  if(webLines.length>100) webLines.shift();
+}
+
+function showCombo(text,color='#ff3333'){
+  const el=document.getElementById('combo');
+  el.textContent=text; el.style.color=color; el.style.opacity='1';
+  el.style.textShadow=`0 0 30px ${color}`;
+  clearTimeout(window._ct);
+  window._ct=setTimeout(()=>el.style.opacity='0',750);
+}
+
+// drawAnchoredWeb kept for compatibility but background now handles webs via bakeBackground
+function drawAnchoredWeb(cx,cy,rings,spokes,alpha,color){
+  const iRings=Math.floor(rings);
+  const wc=getWebCache(iRings);
+  ctx.save(); ctx.globalAlpha=alpha;
+  // Translate so corner aligns
+  const off=(iRings+1)*20+4;
+  ctx.drawImage(wc, cx===0?0:cx-off, cy===0?0:cy-off);
+  ctx.restore();
+}
+
+// ============================================================
+//  ENEMY SPRITE CACHE
+//  Pre-renders each type × WING_PHASES animation frames × webbed variant
+//  drawFly() becomes a single drawImage() call — ~15x fewer draw calls/enemy
+// ============================================================
+const WING_PHASES = 8; // animation buckets
+let enemySprites = {}; // key: `${type}_${phase}_${webbed?1:0}_${hp<maxHp?1:0}`
+
+function renderEnemyToCanvas(type, wPhase, webbed, damaged){
+  const def = ENEMY_TYPES[type];
+  const r = def.r;
+  const pad = Math.ceil(r * 5);
+  const size = pad * 2;
+  const oc = document.createElement('canvas');
+  oc.width = size; oc.height = size;
+  const ox = oc.getContext('2d');
+  ox.translate(pad, pad);
+
+  const wabs = Math.abs(Math.sin(wPhase * Math.PI * 2 / WING_PHASES));
+
+  // Glow
+  if(webbed){ ox.globalAlpha=0.6; ox.fillStyle='#c0a0ff'; }
+  else { ox.globalAlpha=0.18; ox.fillStyle=type==='moth'?'#b050ff':type==='hornet'||type==='wasp'?'#ffaa00':'#ffdd60'; }
+  ox.beginPath(); ox.arc(0,0,r*3.5,0,Math.PI*2); ox.fill();
+  ox.globalAlpha=1;
+
+  if(type==='moth'){
+    ox.globalAlpha=0.5;
+    for(let side of[-1,1]){
+      ox.beginPath();
+      ox.ellipse(side*r*2,-r*0.3,r*2.2,r*1.4*wabs,side*0.2,0,Math.PI*2);
+      ox.fillStyle='rgba(180,100,220,0.4)'; ox.fill();
+    }
+    ox.globalAlpha=1;
+    ox.beginPath(); ox.ellipse(0,0,r*0.7,r,0,0,Math.PI*2);
+    ox.fillStyle='#3a2540'; ox.fill();
+    ox.beginPath(); ox.arc(-r*0.35,-r*0.8,1.8,0,Math.PI*2); ox.fillStyle='#ffaaff'; ox.fill();
+    ox.beginPath(); ox.arc(r*0.35,-r*0.8,1.8,0,Math.PI*2); ox.fill();
+    if(damaged){
+      ox.fillStyle='rgba(255,100,100,0.8)'; ox.fillRect(-r,-r-6,r*2,3);
+      ox.fillStyle='rgba(255,50,50,0.9)'; ox.fillRect(-r,-r-6,r,3); // show ~half hp
+    }
+  } else if(type==='hornet'){
+    ox.globalAlpha=0.6;
+    for(let side of[-1,1]){
+      ox.beginPath(); ox.moveTo(0,-r*0.5);
+      ox.lineTo(side*r*2.5,-r*1.5*wabs-r); ox.lineTo(side*r*1.5,r*0.3); ox.closePath();
+      ox.fillStyle='rgba(255,200,0,0.3)'; ox.fill();
+    }
+    ox.globalAlpha=1;
+    ox.beginPath(); ox.ellipse(0,0,r*0.55,r*1.1,0,0,Math.PI*2);
+    ox.fillStyle='#4a3000'; ox.fill();
+    for(let i=0;i<3;i++){
+      ox.beginPath(); ox.ellipse(0,(i-1)*r*0.65,r*0.5,r*0.2,0,0,Math.PI*2);
+      ox.fillStyle='rgba(255,200,0,0.5)'; ox.fill();
+    }
+    ox.beginPath(); ox.arc(-r*0.28,-r*0.9,1.6,0,Math.PI*2); ox.fillStyle='#ffcc00'; ox.fill();
+    ox.beginPath(); ox.arc(r*0.28,-r*0.9,1.6,0,Math.PI*2); ox.fill();
+    ox.beginPath(); ox.moveTo(0,r); ox.lineTo(0,r*1.8);
+    ox.strokeStyle='rgba(255,180,0,0.8)'; ox.lineWidth=2; ox.lineCap='round'; ox.stroke();
+  } else if(type==='wasp'){
+    ox.globalAlpha=0.65;
+    for(let side of[-1,1]){
+      ox.beginPath(); ox.moveTo(0,-r*0.3);
+      ox.lineTo(side*r*3.0,-r*1.8*wabs-r*0.5); ox.lineTo(side*r*1.8,r*0.4); ox.closePath();
+      ox.fillStyle='rgba(255,80,0,0.25)'; ox.fill();
+    }
+    ox.globalAlpha=1;
+    ox.beginPath(); ox.ellipse(0,0,r*0.5,r*1.2,0,0,Math.PI*2);
+    ox.fillStyle='#0a0a00'; ox.fill();
+    for(let i=0;i<4;i++){
+      ox.beginPath(); ox.ellipse(0,(i-1.5)*r*0.55,r*0.45,r*0.15,0,0,Math.PI*2);
+      ox.fillStyle=i%2===0?'rgba(255,80,0,0.6)':'rgba(255,160,0,0.3)'; ox.fill();
+    }
+    ox.beginPath(); ox.arc(-r*0.25,-r,1.8,0,Math.PI*2); ox.fillStyle='#ff4400'; ox.fill();
+    ox.beginPath(); ox.arc(r*0.25,-r,1.8,0,Math.PI*2); ox.fill();
+    ox.beginPath(); ox.moveTo(0,r); ox.lineTo(0,r*2.2);
+    ox.strokeStyle='rgba(255,80,0,1)'; ox.lineWidth=2.5; ox.lineCap='round'; ox.stroke();
+    if(damaged){
+      ox.fillStyle='rgba(80,0,0,0.7)'; ox.fillRect(-r,-r-7,r*2,3);
+      ox.fillStyle='rgba(255,80,0,0.9)'; ox.fillRect(-r,-r-7,r,3);
+    }
+  } else { // fly
+    ox.globalAlpha=0.45;
+    for(let side of[-1,1]){
+      ox.beginPath();
+      ox.ellipse(side*r*1.3,-r*0.4,r*1.5,r*0.5*wabs,side*0.4,0,Math.PI*2);
+      ox.fillStyle='rgba(210,230,255,0.7)'; ox.fill();
+    }
+    ox.globalAlpha=1;
+    ox.beginPath(); ox.ellipse(0,0,r*0.5,r*0.9,0,0,Math.PI*2);
+    ox.fillStyle=def.color; ox.fill();
+    ox.beginPath(); ox.arc(0,-r,r*0.45,0,Math.PI*2);
+    ox.fillStyle='#1a1a08'; ox.fill();
+    ox.beginPath(); ox.arc(-r*0.22,-r*1.05,1.3,0,Math.PI*2); ox.fillStyle=def.eyeColor; ox.fill();
+    ox.beginPath(); ox.arc(r*0.22,-r*1.05,1.3,0,Math.PI*2); ox.fill();
+  }
+
+  // Web strands overlay if webbed
+  if(webbed){
+    ox.globalAlpha=1; ox.strokeStyle='rgba(200,180,255,0.5)'; ox.lineWidth=0.6;
+    ox.beginPath();
+    for(let i=0;i<6;i++){
+      const wa=(i/6)*Math.PI*2;
+      ox.moveTo(0,0); ox.lineTo(Math.cos(wa)*r*1.8,Math.sin(wa)*r*1.8);
+    }
+    ox.stroke();
+  }
+
+  return {canvas:oc, pad};
+}
+
+function buildEnemySprites(){
+  enemySprites={};
+  ['fly','moth','hornet','wasp'].forEach(type=>{
+    for(let ph=0;ph<WING_PHASES;ph++){
+      for(let w=0;w<2;w++){
+        for(let d=0;d<2;d++){
+          const key=`${type}_${ph}_${w}_${d}`;
+          enemySprites[key]=renderEnemyToCanvas(type,ph,w===1,d===1);
+        }
+      }
+    }
+  });
+}
+buildEnemySprites();
+
+function drawFly(f){
+  const wPhase = Math.floor((Math.abs(Math.sin(f.wingPhase)) * WING_PHASES)) % WING_PHASES;
+  const key = `${f.type}_${wPhase}_${f.webbed?1:0}_${f.hp<f.maxHp?1:0}`;
+  const spr = enemySprites[key];
+  if(!spr) return;
+  ctx.drawImage(spr.canvas, f.x-spr.pad, f.y-spr.pad);
+}
+
+// ============================================================
+//  DRAW PLAYER — offscreen glow caches + batched leg strokes
+// ============================================================
+let cachedSpiderGlow=null, cachedScorpionGlow=null, cachedScorpionOverheatGlow=null;
+// Shared dot sprite for particles — single drawImage replaces per-frame arc+fill
+let dotSprite=null;
+function buildDotSprite(){
+  const oc=document.createElement('canvas'); oc.width=16; oc.height=16;
+  const ox=oc.getContext('2d');
+  ox.beginPath(); ox.arc(8,8,7,0,Math.PI*2);
+  ox.fillStyle='#ffffff'; ox.fill(); // white — tinted via globalCompositeOperation or color multiply
+  dotSprite=oc;
+}
+function buildPlayerGlows(){
+  function makeGlow(c1){
+    const oc=document.createElement('canvas'); oc.width=68; oc.height=68;
+    const ox=oc.getContext('2d');
+    const g=ox.createRadialGradient(34,34,2,34,34,32);
+    g.addColorStop(0,c1); g.addColorStop(1,'rgba(0,0,0,0)');
+    ox.fillStyle=g; ox.fillRect(0,0,68,68);
+    return oc;
+  }
+  cachedSpiderGlow=makeGlow('rgba(180,140,255,0.2)');
+  cachedScorpionGlow=makeGlow('rgba(60,255,100,0.12)');
+  cachedScorpionOverheatGlow=makeGlow('rgba(255,50,0,0.25)');
+}
+buildPlayerGlows();
+buildDotSprite();
+
+function drawSpider(x,y,ang,phase){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang+Math.PI/2);
+  ctx.drawImage(cachedSpiderGlow,-34,-34);
+  const lc='#3a3a6a',hi='#9a7fff';
+  // All 8 legs in one stroke() call
+  ctx.strokeStyle=lc; ctx.lineWidth=1.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  for(let i=0;i<8;i++){
+    const side=i<4?-1:1,idx=i<4?i:i-4;
+    const ba=(idx/3-0.5)*1.1, lp=(i%2===0?1:-1)*Math.sin(phase*3)*0.18;
+    const lx=side*7,ly=(idx-1.5)*7;
+    const a1=side*(Math.PI*0.45+ba+lp),l1=14;
+    const m1x=lx+Math.cos(a1)*l1,m1y=ly+Math.sin(a1)*l1;
+    const a2=a1+side*0.9,l2=13;
+    const m2x=m1x+Math.cos(a2)*l2,m2y=m1y+Math.sin(a2)*l2;
+    const a3=a2-side*0.5,l3=10;
+    const ex=m2x+Math.cos(a3)*l3,ey=m2y+Math.sin(a3)*l3;
+    ctx.moveTo(lx,ly); ctx.lineTo(m1x,m1y); ctx.lineTo(m2x,m2y); ctx.lineTo(ex,ey);
+  }
+  ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0,12,9,13,0,0,Math.PI*2);
+  ctx.fillStyle='#1a1a2e'; ctx.fill(); ctx.strokeStyle=hi; ctx.lineWidth=0.8; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0,-3,8,10,0,0,Math.PI*2);
+  ctx.fillStyle='#16162a'; ctx.fill(); ctx.strokeStyle=hi; ctx.lineWidth=0.8; ctx.stroke();
+  ctx.fillStyle='#ff4444';
+  ctx.beginPath(); ctx.arc(-3*0.7,-7*0.6,1.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3*0.7,-7*0.6,1.4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#cc2222';
+  for(const [ex,ey] of[[-5,-5],[5,-5],[-2,-5],[2,-5],[-4,-3],[4,-3]]){
+    ctx.beginPath(); ctx.arc(ex*0.7,ey*0.6,1.4,0,Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle='#6a6aaa'; ctx.lineWidth=1.5;
+  for(const sx of[-1,1]){
+    ctx.beginPath(); ctx.moveTo(sx*3,-12); ctx.quadraticCurveTo(sx*4,-16,sx*2,-17); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawScorpion(x,y,ang,phase){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang+Math.PI/2);
+  ctx.drawImage(overheat?cachedScorpionOverheatGlow:cachedScorpionGlow,-34,-34);
+  const lc=overheat?'#4a2a0a':'#2a4a2a',hi=overheat?'#ff6a00':'#4fff6a';
+  // All 8 legs in one stroke() call
+  ctx.strokeStyle=lc; ctx.lineWidth=1.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  for(let i=0;i<8;i++){
+    const side=i<4?-1:1,idx=i<4?i:i-4;
+    const lp=(i%2===0?1:-1)*Math.sin(phase*3)*0.2;
+    const lx=side*6,ly=(idx-1.5)*5+5;
+    const a1=side*(Math.PI*0.5+lp),l1=12;
+    const m1x=lx+Math.cos(a1)*l1,m1y=ly+Math.sin(a1)*l1;
+    const a2=a1+side*0.8,l2=11;
+    ctx.moveTo(lx,ly); ctx.lineTo(m1x,m1y); ctx.lineTo(m1x+Math.cos(a2)*l2,m1y+Math.sin(a2)*l2);
+  }
+  ctx.stroke();
+  for(let side of[-1,1]){
+    const cp=Math.sin(phase*2)*0.2;
+    ctx.beginPath(); ctx.moveTo(side*5,-10); ctx.lineTo(side*14,-18+cp*5);
+    ctx.strokeStyle=lc; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(side*14,-18+cp*5); ctx.lineTo(side*20,-22+cp*5);
+    ctx.strokeStyle=overheat?'#ff4400':'#3a6a3a'; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(side*14,-18+cp*5); ctx.lineTo(side*18,-14+cp*5); ctx.stroke();
+  }
+  let tx=0,ty=20; const tp=[{x:tx,y:ty}];
+  for(let i=0;i<5;i++){tx+=Math.sin(phase*1.5+i*0.3)*3;ty+=8;tp.push({x:tx,y:ty});}
+  ctx.beginPath(); ctx.moveTo(tp[0].x,tp[0].y);
+  for(let i=1;i<tp.length;i++) ctx.lineTo(tp[i].x,tp[i].y);
+  ctx.strokeStyle=lc; ctx.lineWidth=5; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+  const last=tp[tp.length-1];
+  ctx.beginPath(); ctx.moveTo(last.x,last.y);
+  ctx.quadraticCurveTo(last.x+8,last.y+5,last.x+3,last.y+12);
+  ctx.strokeStyle=overheat?'#ffaa00':'#aaffaa'; ctx.lineWidth=2; ctx.stroke();
+  for(let i=0;i<5;i++){
+    ctx.beginPath(); ctx.ellipse(0,i*5,7-i*0.5,4,0,0,Math.PI*2);
+    ctx.fillStyle='#1a2a1a'; ctx.fill(); ctx.strokeStyle=hi; ctx.lineWidth=0.5; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.ellipse(0,-12,7,6,0,0,Math.PI*2);
+  ctx.fillStyle='#162216'; ctx.fill(); ctx.strokeStyle=hi; ctx.lineWidth=0.5; ctx.stroke();
+  for(let ex of[-3,3]){
+    ctx.beginPath(); ctx.arc(ex,-14,1.5,0,Math.PI*2);
+    ctx.fillStyle=overheat?'#ff4400':'#44ff44'; ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+function animate(){
+  requestAnimationFrame(animate);
+  if(!gameStarted) return;
+  if(gameOver) return;
+  if(upgradeActive) return; // pause game during upgrade screen
+  frameCount++;
+
+  // Wave announce fade
+  if(waveAnnounceTimer>0){
+    waveAnnounceTimer--;
+    if(waveAnnounceTimer===0) document.getElementById('wave-announce').style.opacity='0';
+  }
+
+  // Wave break + upgrade screen trigger
+  if(wavePending && waveBreakTimer>0){
+    waveBreakTimer--;
+    if(waveBreakTimer===0){ showUpgradeScreen(); }
+  }
+
+  // Resource regeneration (uses perk-modified values)
+  if(mode==='spider') silk=Math.min(100,silk+P.silkRegen);
+  else {
+    heat=Math.max(0,heat-P.heatDecay);
+    if(overheat && heat<=0){ overheat=false; }
+    if(overheatTimer>0) overheatTimer--;
+  }
+
+  // Invincibility frames countdown
+  if(playerInvincible>0) playerInvincible--;
+
+  // Resource bar UI
+  const fill=document.getElementById('resource-fill');
+  if(mode==='spider'){
+    const pct=silk/100;
+    fill.style.width=(pct*100)+'%';
+    fill.style.background=`linear-gradient(90deg, #8060c0, #c0a0ff)`;
+  } else {
+    const pct=heat/100;
+    fill.style.width=(pct*100)+'%';
+    fill.style.background=overheat?'linear-gradient(90deg,#ff2200,#ff6600)':`linear-gradient(90deg,#20aa20,${pct>0.7?'#ff8800':'#8eff6a'})`;
+  }
+
+  // Combo timer bar
+  const ctWrap=document.getElementById('combo-timer-bar-wrap');
+  const ctFill=document.getElementById('combo-timer-fill');
+  if(comboCount>=2 && comboTimer>0){
+    ctWrap.style.display='block';
+    ctFill.style.width=(comboTimer)+'%';
+    ctFill.style.background=comboCount>=5?'linear-gradient(90deg,#ff44aa,#ffffff88)':comboCount>=3?'linear-gradient(90deg,#c0a0ff,#ffffff88)':'linear-gradient(90deg,#8eff6a,#ffffff88)';
+  } else { ctWrap.style.display='none'; }
+
+  // Spawn enemies (only mid-wave, not during boss)
+  if(!subject0Active && !wavePending && frameCount-lastSpawn > Math.max(30, 110-wave*5) && flies.reduce((n,f)=>n+(f.alive?1:0),0) < Math.min(6+wave*2,22)){
+    const r=Math.random();
+    if(r<0.08&&wave>=5) spawnEnemy('wasp');
+    else if(r<(0.1+wave*0.025)&&wave>=2) spawnEnemy('hornet');
+    else if(r<(0.2+wave*0.04)) spawnEnemy('moth');
+    else spawnEnemy('fly');
+    lastSpawn=frameCount;
+  }
+
+  // ── MOMENTUM-BASED PLAYER MOVEMENT ──
+  const dx=mouse.x-pos.x, dy=mouse.y-pos.y;
+  const dist2=Math.sqrt(dx*dx+dy*dy);
+  if(dist2>4){
+    const ndx=dx/dist2, ndy=dy/dist2;
+    // Scale accel by distance — fast when far, gentler when close to avoid overshooting
+    const accelScale=Math.min(dist2/40, 1);
+    vel.x+=ndx*ACCEL*accelScale; vel.y+=ndy*ACCEL*accelScale;
+  }
+  vel.x*=FRICTION; vel.y*=FRICTION;
+  const spd2=Math.sqrt(vel.x**2+vel.y**2);
+  if(spd2>P.maxSpeed){ vel.x=(vel.x/spd2)*P.maxSpeed; vel.y=(vel.y/spd2)*P.maxSpeed; }
+  pos.x+=vel.x; pos.y+=vel.y;
+  pos.x=Math.max(20,Math.min(GW()-20,pos.x));
+  pos.y=Math.max(20,Math.min(GH()-20,pos.y));
+  if(spd2>0.5){
+    targetAngle=Math.atan2(vel.y,vel.x);
+    legPhase+=spd2*0.05;
+    if(frameCount-lastWebTime>20&&spd2>1&&mode==='spider'){
+      spawnWeb(pos.x,pos.y,pos.x+(Math.random()-0.5)*30,pos.y+(Math.random()-0.5)*30);
+      lastWebTime=frameCount;
+    }
+  }
+  angle=lerpAngle(angle,targetAngle,0.15);
+  trail.push({x:pos.x,y:pos.y,age:0});
+  for(let i=trail.length-1;i>=0;i--){ trail[i].age++; if(trail[i].age>=25) trail.splice(i,1); }
+
+  // Update enemies — AI runs every 2nd frame to halve CPU cost
+  const updateAI=(frameCount%2===0);
+  flies.forEach(f=>{
+    if(!f.alive)return;
+    f.wingPhase+=f.type==='moth'?0.12:0.3;
+    if(f.webbedTimer>0) f.webbedTimer--; else f.webbed=false;
+
+    // Panic buzz when webbed
+    f.buzzTimer--;
+    if(f.buzzTimer<=0){
+      if(f.webbed||f.type==='hornet'||f.type==='wasp') playBuzz(f.type==='hornet'||f.type==='wasp'?380:220+Math.random()*80,0.1);
+      f.buzzTimer=f.webbed?20:60+Math.random()*80;
+    }
+
+    const fdx=pos.x-f.x,fdy=pos.y-f.y;
+    const fd2=fdx*fdx+fdy*fdy;
+    const fd=Math.sqrt(fd2); // still need actual distance for movement math
+    const fspd=f.webbed?f.speed*0.2:f.speed;
+
+    if(updateAI){
+      if(f.type==='hornet'||f.type==='wasp'){
+        if(fd2<280*280){ f.charge=true; }
+        if(f.charge&&!f.webbed){
+          const chargeStr=f.type==='wasp'?0.55:0.38;
+          f.vx+=(fdx/fd)*chargeStr; f.vy+=(fdy/fd)*chargeStr;
+        } else {
+          f.vx+=(Math.random()-0.5)*0.3; f.vy+=(Math.random()-0.5)*0.3;
+        }
+      } else if(f.type==='moth'){
+        if(fd2<100*100&&!f.webbed){ f.vx-=(fdx/fd)*0.1; f.vy-=(fdy/fd)*0.1; }
+        f.vx+=(Math.random()-0.5)*0.15; f.vy+=(Math.random()-0.5)*0.15;
+      } else {
+        if(fd2<130*130){ f.fleeing=true; f.fleeTimer=70; }
+        if(f.fleeTimer>0)f.fleeTimer--;else f.fleeing=false;
+        if(f.fleeing&&!f.webbed){ f.vx-=(fdx/fd)*0.28; f.vy-=(fdy/fd)*0.28; }
+        else{ f.vx+=(Math.random()-0.5)*0.25; f.vy+=(Math.random()-0.5)*0.25; }
+      }
+
+      const fs2=f.vx*f.vx+f.vy*f.vy;
+      if(fs2>fspd*fspd){ const fs=Math.sqrt(fs2); f.vx=(f.vx/fs)*fspd; f.vy=(f.vy/fs)*fspd; }
+    }
+
+    f.x+=f.vx; f.y+=f.vy;
+    if(f.x<0||f.x>GW())f.vx*=-1;
+    if(f.y<0||f.y>GH())f.vy*=-1;
+    f.x=Math.max(0,Math.min(GW(),f.x));
+    f.y=Math.max(0,Math.min(GH(),f.y));
+
+    // Enemy damages player on contact (aggressive types only)
+    const contactR2=(20+f.r)*(20+f.r);
+    if(fd2<contactR2 && (f.type==='hornet'||f.type==='wasp'||f.type==='moth')){
+      hurtPlayer(f.damage||1);
+    }
+
+    // Kill on touch
+    if(fd2<contactR2){
+      if(mode==='spider'){
+        // DEATH_WEB perk: webbed enemies die on proximity (no touch needed)
+        const canKill = f.webbed || f.type==='fly' || (P.webKillsOnContact && f.webbed);
+        if(canKill){
+          // VENOMOUS perk: deal +1 bonus damage on webbed touch
+          if(P.venomBonus && f.webbed) f.hp = Math.max(0, f.hp-1);
+          killEnemy(f);
+          playKillHit(comboCount);
+          if(comboCount>=2) playComboStinger(comboCount);
+          if(comboCount>=5) showCombo(`${comboCount}x MASSACRE!`,'#c0a0ff');
+          else if(comboCount>=3) showCombo(`${comboCount}x COMBO!`,'#c0a0ff');
+          else if(f.webbed) showCombo('FINISHED!','#c0a0ff');
+          else showCombo('SNATCHED!','#c0a0ff');
+        }
+      } else {
+        if(!overheat){
+          heat=Math.min(100,heat+15);
+          killEnemy(f);
+          playKillHit(comboCount);
+          if(comboCount>=3) showCombo(`${comboCount}x CRUSHED!`,'#8eff6a');
+          else showCombo('CRUSHED!','#8eff6a');
+        }
+      }
+    }
+  });
+
+  // Subject 0 contact kill (spider touch when webbed-equivalent, or scorpion touch)
+  if(subject0Active && subject0 && subject0.alive){
+    const s0d2 = (pos.x-subject0.x)**2+(pos.y-subject0.y)**2;
+    if(s0d2 < (20+subject0.r)**2){
+      if(mode==='spider'){ damageSubject0(1); }
+    }
+  }
+
+  if(comboTimer>0)comboTimer--;else comboCount=0;
+
+  // Particles — hard cap at 600 (kill oldest first), skip physics when near-transparent
+  if(particles.length>600) particles.splice(0, particles.length-600);
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    if(p.isHitFlash){ p.alpha-=0.04; }
+    else{
+      if(p.alpha>0.08){ p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.vx*=0.95; p.r*=0.97; }
+      p.alpha-=0.035;
+    }
+    if(p.alpha<=0.01) particles.splice(i,1);
+  }
+  // Web/ability decay — single pass each
+  for(let i=webLines.length-1;i>=0;i--){
+    const w=webLines[i]; w.age++;
+    if(w.age>200) w.alpha-=0.002;
+    if(w.alpha<=0.005) webLines.splice(i,1);
+  }
+  for(let i=abilityEffects.length-1;i>=0;i--){
+    const e=abilityEffects[i]; e.age++;
+    if(e.type==='web'){e.r=Math.min(e.r+12,e.maxR);e.alpha-=0.04;}
+    else e.alpha-=0.025;
+    if(e.alpha<=0.01) abilityEffects.splice(i,1);
+  }
+
+  // ============================================================
+  //  DRAW — gameplay canvas only (background is on bgCanvas, static)
+  // ============================================================
+  const W=GW(), H=GH();
+
+  // Rebake background if corner webs grew (score-driven, rare)
+  const curWebRings=Math.floor(Math.min(score*0.35+2,8));
+  if(curWebRings!==lastBakedWebRings) bakeBackground();
+
+  ctx.clearRect(0,0,W,H);
+
+  // Screenshake — offset entire gameplay canvas via translate
+  let shakeX=0, shakeY=0;
+  if(shakeIntensity>0.3){
+    shakeX=(Math.random()*2-1)*shakeIntensity;
+    shakeY=(Math.random()*2-1)*shakeIntensity;
+    shakeIntensity*=0.78;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+  }
+
+  // Web lines — single batched path (2 draw calls total)
+  ctx.lineWidth=0.6; ctx.lineCap='butt';
+  ctx.beginPath(); ctx.strokeStyle='rgba(140,200,120,0.3)';
+  webLines.forEach(w=>{ ctx.moveTo(w.x1,w.y1); ctx.lineTo(w.x2,w.y2); });
+  ctx.stroke();
+
+  // Blood splatters — 2 draw calls per splatter (circle + drops batch)
+  bloodSplatters.forEach(s=>{
+    ctx.save(); ctx.globalAlpha=s.alpha*0.55;
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*0.45,0,Math.PI*2);
+    ctx.fillStyle='#7a0000'; ctx.fill();
+    ctx.strokeStyle='#5a0000'; ctx.lineWidth=1.5; ctx.lineCap='round';
+    ctx.beginPath();
+    s.drops.forEach(d=>{
+      ctx.moveTo(s.x,s.y);
+      ctx.lineTo(s.x+Math.cos(d.angle)*d.len,s.y+Math.sin(d.angle)*d.len);
+    });
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Trail — single beginPath, one fill per alpha bucket (thin trail = skip fine)
+  if(trail.length){
+    ctx.save();
+    const trailColor=mode==='spider'?'180,140,255':'74,255,106';
+    trail.forEach(p=>{
+      const a=(1-p.age/25)*0.13;
+      ctx.globalAlpha=a;
+      ctx.fillStyle=`rgb(${trailColor})`;
+      ctx.fillRect(p.x-2,p.y-2,4,4); // square instead of arc — no arc overhead
+    });
+    ctx.restore();
+  }
+
+  // Hit flash particles (full-screen overlay, handled separately)
+  ctx.save();
+  particles.forEach(p=>{ if(p.isHitFlash){ ctx.globalAlpha=p.alpha; ctx.fillStyle=p.color; ctx.fillRect(0,0,W,H); } });
+  ctx.restore();
+
+  // Regular particles — drawn as scaled dot sprites (1 drawImage per particle, no arc)
+  if(dotSprite){
+    ctx.save();
+    particles.forEach(p=>{
+      if(p.isHitFlash) return;
+      const s=p.r/7; // dot sprite is 16px, centered at 8; scale to match p.r
+      ctx.globalAlpha=p.alpha;
+      ctx.fillStyle=p.color;
+      // Use fillRect colored square — faster than arc, visually fine for small particles
+      const hw=Math.max(1,p.r);
+      ctx.fillRect(p.x-hw,p.y-hw,hw*2,hw*2);
+    });
+    ctx.restore();
+  }
+
+  // Ability effects — 1-2 draw calls each
+  ctx.save();
+  abilityEffects.forEach(e=>{
+    if(e.type==='web'){
+      ctx.globalAlpha=e.alpha; ctx.strokeStyle='rgba(180,150,255,0.9)'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.stroke();
+    } else {
+      ctx.globalAlpha=e.alpha*0.22; ctx.fillStyle='rgba(80,255,80,1)';
+      ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.arc(e.x,e.y,200,e.dir-0.95,e.dir+0.95); ctx.closePath(); ctx.fill();
+    }
+  });
+  ctx.restore();
+
+  // Overheat flash
+  if(overheat && frameCount%20<10){
+    ctx.save(); ctx.globalAlpha=0.08; ctx.fillStyle='#ff4400'; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+
+  // Enemies — each is a single drawImage (pre-baked sprite)
+  ctx.globalAlpha=1;
+  flies.forEach(f=>{ if(f.alive) drawFly(f); });
+
+  // Subject 0 — boss
+  if(subject0Active) updateSubject0();
+  drawSubject0();
+
+  // Player
+  const showPlayer = playerInvincible===0 || frameCount%6<4;
+  if(showPlayer){
+    ctx.globalAlpha=playerInvincible>0?0.55:1;
+    if(mode==='spider') drawSpider(pos.x,pos.y,angle,legPhase);
+    else drawScorpion(pos.x,pos.y,angle,legPhase);
+    ctx.globalAlpha=1;
+  }
+
+  if(shakeX!==0 || shakeY!==0) ctx.restore();
+}
+
+animate();
+</script>
+</body>
+</html>
