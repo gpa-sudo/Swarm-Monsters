@@ -35,6 +35,7 @@ A browser-based arcade survival game built with HTML5 Canvas.
 - Boss enemy (Subject 0)
 - Screen shake, particles, and visual effects
 - Fully self-contained — no dependencies, runs in any browser
+- No additional health
 
 ## 🛠️ Tech Stack
 
