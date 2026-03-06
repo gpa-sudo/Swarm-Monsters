@@ -4,7 +4,7 @@ A browser-based arcade survival game built with HTML5 Canvas.
 
 ## 🎮 Play Now
 
-👉 [Play Swarm Monsters](https://your-username.github.io/swarm-monsters/)
+👉 [Play Swarm Monsters](https://gpa-sudo.github.io/Swarm-Monsters/)
 
 > *(Replace the link above with your actual GitHub Pages URL after setup)*
 
