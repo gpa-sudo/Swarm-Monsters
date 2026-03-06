@@ -18,8 +18,9 @@ A browser-based arcade survival game built with HTML5 Canvas.
 
 | Input | Action |
 |-------|--------|
-| Mouse Move | Move character |
-| Left Click | Use ability (web shot / charge) |
+| Mouse Move  | Move character |
+| Left Click  | Use ability (web shot/charge) |
+| Right Click | Character change |
 
 ## 🧬 Game Modes
 
