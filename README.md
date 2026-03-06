@@ -6,8 +6,6 @@ A browser-based arcade survival game built with HTML5 Canvas.
 
 👉 [Play Swarm Monsters](https://gpa-sudo.github.io/Swarm-Monsters/)
 
-> *(Replace the link above with your actual GitHub Pages URL after setup)*
-
 ## 🕹️ How to Play
 
 - Move your cursor to control your character
